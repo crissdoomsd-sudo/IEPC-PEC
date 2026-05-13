@@ -1,0 +1,241 @@
+/* Custom Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Sidebar Active State */
+.nav-btn.active {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border-right: 3px solid #3b82f6;
+}
+
+/* Card Hover Effects */
+.stat-card {
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Heatmap Cell Styles */
+.heatmap-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.1);
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.heatmap-empty {
+    background-color: #f1f5f9;
+    color: #cbd5e1;
+}
+
+.heatmap-low {
+    background-color: #fecaca;
+    color: #991b1b;
+}
+
+.heatmap-medium {
+    background-color: #fde68a;
+    color: #92400e;
+}
+
+.heatmap-high {
+    background-color: #bbf7d0;
+    color: #166534;
+}
+
+.heatmap-full {
+    background-color: #22c55e;
+    color: white;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-asistio {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.status-ausente {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.status-atraso {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-licencia {
+    background-color: #e0e7ff;
+    color: #3730a3;
+}
+
+/* Attendance Radio Custom */
+.attendance-radio {
+    appearance: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.attendance-radio:checked {
+    border-width: 4px;
+}
+
+.attendance-radio[value="asistio"]:checked {
+    border-color: #22c55e;
+    background-color: #dcfce7;
+}
+
+.attendance-radio[value="ausente"]:checked {
+    border-color: #ef4444;
+    background-color: #fee2e2;
+}
+
+.attendance-radio[value="atraso"]:checked {
+    border-color: #f59e0b;
+    background-color: #fef3c7;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section-content:not(.hidden) {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Print Styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    body {
+        background: white;
+    }
+    
+    .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+        box-shadow: none !important;
+    }
+}
+
+/* Responsive Table */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Loading Spinner */
+.spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Multi-select Dropdown */
+.multi-select {
+    position: relative;
+}
+
+.multi-select-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+}
+
+.multi-select-options.show {
+    display: block;
+}
+
+.multi-select-option {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.multi-select-option:hover {
+    background-color: #f3f4f6;
+}
+
+/* Toast Animation */
+.toast-show {
+    transform: translateY(0) !important;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 100%;
+    width: 100%;
+}
