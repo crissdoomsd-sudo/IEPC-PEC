@@ -69,7 +69,6 @@ h1,h2,h3,h4,.font-display{font-family:'Fredoka',sans-serif}
 .nav-tab{display:flex;align-items:center;gap:6px;padding:10px 16px;font-weight:700;font-size:14px;color:var(--text-secondary);border-bottom:2px solid transparent;cursor:pointer;transition:color .2s,background .2s,border-color .2s;white-space:nowrap}
 .nav-tab:hover{color:#818cf8;background:rgba(129,140,248,0.05)}
 .nav-tab.active{color:#818cf8;border-bottom-color:#818cf8;background:rgba(129,140,248,0.05)}
-/* ====== STAT MODULES (estilo imagen) ====== */
 .stat-module{border-radius:18px;padding:22px 20px;color:#fff;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s;min-height:130px;display:flex;flex-direction:column;justify-content:space-between}
 .stat-module:hover{transform:translateY(-5px);box-shadow:0 12px 28px rgba(0,0,0,0.25)}
 .stat-module .stat-icon{font-size:28px;opacity:.85;margin-bottom:8px}
@@ -190,10 +189,7 @@ body{background:#fff!important;color:#000!important}
   <!-- ====== SECCIÓN PANEL PRINCIPAL ====== -->
   <section id="section-panel" class="p-4 md:p-6 max-w-7xl mx-auto">
     <h2 class="font-display text-2xl font-bold mb-6" style="color:var(--text-primary)">Panel Principal</h2>
-
-    <!-- 6 Módulos de estadística estilo color-block -->
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-      <!-- Total -->
       <div class="stat-module stat-total animate-fadeInUp">
         <div>
           <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
@@ -202,7 +198,6 @@ body{background:#fff!important;color:#000!important}
         </div>
         <div class="stat-label">Total</div>
       </div>
-      <!-- Asistencias -->
       <div class="stat-module stat-asist animate-fadeInUp" style="animation-delay:.05s">
         <div>
           <div class="stat-icon"><i class="fa-solid fa-check-circle"></i></div>
@@ -211,7 +206,6 @@ body{background:#fff!important;color:#000!important}
         </div>
         <div class="stat-label">Asistencias</div>
       </div>
-      <!-- Ausentes -->
       <div class="stat-module stat-ausentes animate-fadeInUp" style="animation-delay:.1s">
         <div>
           <div class="stat-icon"><i class="fa-solid fa-times-circle"></i></div>
@@ -220,7 +214,6 @@ body{background:#fff!important;color:#000!important}
         </div>
         <div class="stat-label">Ausentes</div>
       </div>
-      <!-- Atrasos -->
       <div class="stat-module stat-atrasos animate-fadeInUp" style="animation-delay:.15s">
         <div>
           <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
@@ -229,7 +222,6 @@ body{background:#fff!important;color:#000!important}
         </div>
         <div class="stat-label">Atrasos</div>
       </div>
-      <!-- Licencias -->
       <div class="stat-module stat-licencias animate-fadeInUp" style="animation-delay:.2s">
         <div>
           <div class="stat-icon"><i class="fa-solid fa-id-card"></i></div>
@@ -238,7 +230,6 @@ body{background:#fff!important;color:#000!important}
         </div>
         <div class="stat-label">Licencias</div>
       </div>
-      <!-- Incidencias -->
       <div class="stat-module stat-incidencias animate-fadeInUp" style="animation-delay:.25s">
         <div>
           <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
@@ -250,14 +241,12 @@ body{background:#fff!important;color:#000!important}
     </div>
 
     <div class="grid md:grid-cols-2 gap-6">
-      <!-- Últimas incidencias -->
       <div class="card-premium">
         <h3 class="font-display text-lg font-bold mb-4 flex items-center gap-2" style="color:var(--text-primary)"><i class="fa-solid fa-fire text-orange-400"></i> Últimas incidencias</h3>
         <div id="latest-incidents" style="max-height:280px;overflow-y:auto">
           <p class="text-sm" style="color:var(--text-secondary)">Sin incidencias hoy</p>
         </div>
       </div>
-      <!-- Mapa de calor -->
       <div class="card-premium">
         <h3 class="font-display text-lg font-bold mb-4 flex items-center gap-2" style="color:var(--text-primary)"><i class="fa-solid fa-calendar-alt text-indigo-400"></i> Mapa de calor — <span id="heatmap-month"></span></h3>
         <div class="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold" style="color:var(--text-secondary)">
@@ -478,16 +467,17 @@ body{background:#fff!important;color:#000!important}
 
 <script>
 /* ======================================================
-   FIREBASE CONFIG — CREDENCIALES REALES DEL PROYECTO
+   FIREBASE CONFIG — CREDENCIALES ACTUALIZADAS IEPC-PEC
    ====================================================== */
 const firebaseConfig = {
-  apiKey: "AIzaSyD9zbqKpiB-XWxkPDCxgHEKlZIIEqPdWqw",
-  authDomain: "aristarco-biometric.firebaseapp.com",
-  databaseURL: "https://aristarco-biometric-default-rtdb.firebaseio.com",
-  projectId: "aristarco-biometric",
-  storageBucket: "aristarco-biometric.firebasestorage.app",
-  messagingSenderId: "168157898078",
-  appId: "1:168157898078:web:b87a773d8fea40c252dbcf"
+  apiKey: "AIzaSyAhsn87Ymkv7MrOD-5aQiDCCzFCs-V8oZI",
+  authDomain: "iepc-pec.firebaseapp.com",
+  databaseURL: "https://iepc-pec-default-rtdb.firebaseio.com",
+  projectId: "iepc-pec",
+  storageBucket: "iepc-pec.firebasestorage.app",
+  messagingSenderId: "962879217189",
+  appId: "1:962879217189:web:5a4e27ed8ab58838d6e9cc",
+  measurementId: "G-RXCC1PXD7J"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -720,7 +710,6 @@ function refreshDashboard() {
     if (r.incidencias && r.incidencias.length) incidenciasCount += r.incidencias.length;
   });
 
-  // Animar números
   animateValue(document.getElementById('val-total'), 0, total, 600);
   animateValue(document.getElementById('val-presentes'), 0, presentes, 600);
   animateValue(document.getElementById('val-ausentes'), 0, ausentes, 600);
@@ -728,7 +717,6 @@ function refreshDashboard() {
   animateValue(document.getElementById('val-licencias'), 0, licencias, 600);
   animateValue(document.getElementById('val-incidencias'), 0, incidenciasCount, 600);
 
-  // Calcular y mostrar porcentajes
   const pct = (v) => total > 0 ? Math.round((v/total)*100) : 0;
   document.getElementById('pct-total').textContent = total > 0 ? '100%' : '0%';
   document.getElementById('pct-presentes').textContent = pct(presentes)+'%';
