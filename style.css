@@ -192,6 +192,23 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+/* Toast Animation */
+.toast-show {
+    transform: translateY(0) !important;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 100%;
+    width: 100%;
+}
+
+/* Login Modal Animation */
+#loginModal {
+    backdrop-filter: blur(4px);
+}
+
 /* Multi-select Dropdown */
 .multi-select {
     position: relative;
@@ -228,14 +245,55 @@ body {
     background-color: #f3f4f6;
 }
 
-/* Toast Animation */
-.toast-show {
-    transform: translateY(0) !important;
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    #sidebar {
+        transform: translateX(-100%);
+    }
+    
+    #sidebar.translate-x-0 {
+        transform: translateX(0);
+    }
+    
+    main {
+        margin-left: 0;
+    }
 }
 
-/* Chart Container */
-.chart-container {
-    position: relative;
-    height: 100%;
-    width: 100%;
+/* Focus styles */
+input:focus, select:focus, textarea:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Button hover effects */
+button {
+    transition: all 0.2s ease;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* Card shadows on hover */
+.hover\\:shadow-md:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Table row hover */
+tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Modal overlay */
+.fixed.inset-0 {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* License card */
+#licensesList > div {
+    transition: all 0.2s ease;
+}
+
+#licensesList > div:hover {
+    transform: translateX(4px);
 }
