@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IEPC-PEC | Gestión Escolar</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['Space Grotesk', 'sans-serif'],
+                        body: ['DM Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: { 50:'#f0fdfa',100:'#ccfbf1',200:'#99f6e4',300:'#5eead4',400:'#2dd4bf',500:'#14b8a6',600:'#0d9488',700:'#0f766e',800:'#115e59',900:'#134e4a' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #F7F8FA;
+            --bg-card: #FFFFFF;
+            --bg-sidebar: #0F172A;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --border: #E2E8F0;
+            --shadow: rgba(0,0,0,0.06);
+        }
+        .dark {
+            --bg-primary: #0B1120;
+            --bg-card: #151F32;
+            --bg-sidebar: #070D1A;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --border: #1E2D45;
+            --shadow: rgba(0,0,0,0.3);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
+            margin: 0; min-height: 100vh;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Space Grotesk', sans-serif; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(20,184,166,0.4); }
+            50% { box-shadow: 0 0 20px 4px rgba(20,184,166,0.15); }
+        }
+        @keyframes float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-fadeInUp { animation: fadeInUp 0.5s ease-out both; }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out both; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-spin { animation: spin 1s linear infinite; }
+
+        .sidebar {
+            background: var(--bg-sidebar);
+            width: 260px; min-height: 100vh;
+            position: fixed; left: 0; top: 0; z-index: 40;
+            transition: transform 0.3s ease;
+        }
+        @media (max-width: 1023px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+        }
+        .sidebar-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 35; display: none;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 20px; margin: 2px 12px;
+            border-radius: 10px; cursor: pointer;
+            color: #94A3B8; transition: all 0.2s;
+            font-size: 14px; font-weight: 500;
+        }
+        .nav-item:hover { color: #E2E8F0; background: rgba(255,255,255,0.05); }
+        .nav-item.active {
+            color: #14B8A6; background: rgba(20,184,166,0.1);
+            border-left: 3px solid #14B8A6;
+        }
+        .nav-item i { width: 20px; text-align: center; font-size: 15px; }
+
+        .dash-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px; padding: 20px;
+            transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .dash-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px var(--shadow);
+        }
+        .dash-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; border-radius: 16px 16px 0 0;
+        }
+        .dash-card.card-teal::before { background: linear-gradient(90deg, #14B8A6, #2DD4BF); }
+        .dash-card.card-green::before { background: linear-gradient(90deg, #10B981, #34D399); }
+        .dash-card.card-rose::before { background: linear-gradient(90deg, #F43F5E, #FB7185); }
+        .dash-card.card-amber::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+
+        .heatmap-cell {
+            width: 100%; aspect-ratio: 1; border-radius: 4px;
+            transition: all 0.2s; cursor: pointer; position: relative;
+        }
+        .heatmap-cell:hover { transform: scale(1.3); z-index: 2; }
+        .heatmap-tooltip {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #1E293B; color: #F1F5F9;
+            padding: 4px 8px; border-radius: 6px; font-size: 11px;
+            white-space: nowrap; z-index: 10; pointer-events: none;
+        }
+        .heatmap-cell:hover .heatmap-tooltip { display: block; }
+
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .data-table thead th {
+            background: var(--bg-card); color: var(--text-secondary);
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.05em; padding: 12px 16px;
+            border-bottom: 2px solid var(--border); text-align: left;
+            position: sticky; top: 0; z-index: 1;
+        }
+        .data-table tbody td {
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            font-size: 14px; color: var(--text-primary);
+            transition: background 0.15s;
+        }
+        .data-table tbody tr:hover td { background: rgba(20,184,166,0.04); }
+
+        .form-input {
+            width: 100%; padding: 10px 14px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg-card);
+            color: var(--text-primary); font-size: 14px;
+            transition: all 0.2s; outline: none;
+        }
+        .form-input:focus {
+            border-color: #14B8A6;
+            box-shadow: 0 0 0 3px rgba(20,184,166,0.15);
+        }
+        .form-input::placeholder { color: var(--text-secondary); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0D9488, #14B8A6);
+            color: white; padding: 10px 20px; border-radius: 10px;
+            font-weight: 600; font-size: 14px; border: none;
+            cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(20,184,166,0.35); }
+        .btn-secondary {
+            background: transparent; color: #14B8A6; padding: 10px 20px;
+            border-radius: 10px; font-weight: 600; font-size: 14px;
+            border: 1px solid #14B8A6; cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-secondary:hover { background: rgba(20,184,166,0.08); }
+        .btn-danger {
+            background: #EF4444; color: white; padding: 8px 14px;
+            border-radius: 8px; font-weight: 600; font-size: 13px;
+            border: none; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-danger:hover { background: #DC2626; }
+
+        .toast {
+            position: fixed; top: 24px; right: 24px; z-index: 9999;
+            padding: 14px 22px; border-radius: 12px; color: white;
+            font-size: 14px; font-weight: 500;
+            animation: fadeInUp 0.4s ease-out both;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 380px;
+        }
+        .toast.success { background: linear-gradient(135deg, #059669, #10B981); }
+        .toast.error { background: linear-gradient(135deg, #DC2626, #EF4444); }
+        .toast.info { background: linear-gradient(135deg, #0284C7, #0EA5E9); }
+        .toast.warning { background: linear-gradient(135deg, #D97706, #F59E0B); }
+
+        .att-radio { display: none; }
+        .att-label {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+            font-size: 12px; font-weight: 700; transition: all 0.2s;
+            border: 2px solid var(--border);
+        }
+        .att-radio.presente:checked + .att-label { background: #10B981; color: white; border-color: #10B981; }
+        .att-radio.ausente:checked + .att-label { background: #EF4444; color: white; border-color: #EF4444; }
+        .att-radio.atraso:checked + .att-label { background: #F59E0B; color: white; border-color: #F59E0B; }
+        .att-radio.licencia:checked + .att-label { background: #8B5CF6; color: white; border-color: #8B5CF6; }
+
+        .login-bg {
+            background: linear-gradient(135deg, #0B1120 0%, #0F2027 30%, #0D9488 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        .login-bg::before {
+            content: ''; position: absolute; width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(20,184,166,0.2), transparent 70%);
+            top: -100px; right: -100px; border-radius: 50%;
+        }
+        .login-bg::after {
+            content: ''; position: absolute; width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(245,158,11,0.1), transparent 70%);
+            bottom: -80px; left: -80px; border-radius: 50%;
+        }
+
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .badge-green { background: rgba(16,185,129,0.15); color: #10B981; }
+        .badge-red { background: rgba(239,68,68,0.15); color: #EF4444; }
+        .badge-amber { background: rgba(245,158,11,0.15); color: #F59E0B; }
+        .badge-purple { background: rgba(139,92,246,0.15); color: #8B5CF6; }
+
+        @media print {
+            .sidebar, .no-print, .sidebar-overlay, #mobile-header, .toast { display: none !important; }
+            #main-content { margin-left: 0 !important; }
+            .data-table { font-size: 11px; }
+            .data-table thead th { background: #f3f4f6 !important; color: #000 !important; }
+            .data-table tbody td { color: #000 !important; }
+        }
+
+        #main-content {
+            margin-left: 260px; min-height: 100vh; padding: 24px;
+            transition: margin-left 0.3s;
+        }
+        @media (max-width: 1023px) {
+            #main-content { margin-left: 0; padding: 16px; padding-top: 72px; }
+        }
+
+        .section-page { display: none; }
+        .section-page.active { display: block; animation: fadeIn 0.35s ease-out; }
+
+        .license-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 14px 18px;
+            display: flex; align-items: center; gap: 14px;
+            transition: all 0.2s;
+        }
+        .license-card:hover { border-color: #14B8A6; }
+
+        .inc-check { display: none; }
+        .inc-label {
+            display: inline-block; padding: 3px 10px; border-radius: 6px;
+            font-size: 11px; font-weight: 600; cursor: pointer;
+            border: 1px solid var(--border); color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+        .inc-check:checked + .inc-label {
+            background: rgba(20,184,166,0.15); color: #14B8A6;
+            border-color: #14B8A6;
+        }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            z-index: 50; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: var(--bg-card); border-radius: 20px; padding: 32px;
+            max-width: 520px; width: 90%; max-height: 90vh; overflow-y: auto;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        /* ===== Botón Google Sign-In ===== */
+        .google-btn {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            width: 100%; padding: 14px 24px;
+            background: #FFFFFF; color: #3C4043;
+            border: 1px solid #DADCE0; border-radius: 12px;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .google-btn:hover {
+            background: #F8F9FA;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+        }
+        .google-btn:active {
+            background: #F1F3F4;
+            transform: translateY(0);
+        }
+        .google-btn svg {
+            width: 20px; height: 20px; flex-shrink: 0;
+        }
+        .google-btn.loading {
+            pointer-events: none; opacity: 0.7;
+        }
+        .google-btn.loading .google-spinner {
+            display: block;
+        }
+        .google-spinner {
+            display: none;
+            width: 20px; height: 20px;
+            border: 3px solid #DADCE0;
+            border-top-color: #14B8A6;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== TOAST CONTAINER ==================== -->
+<div id="toast-container"></div>
+
+<!-- ==================== PANTALLA LOGIN CON GOOGLE ==================== -->
+<div id="login-screen" class="login-bg">
+    <div class="relative z-10 w-full max-w-md px-4">
+        <div class="text-center mb-8 animate-fadeInUp">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-500/20 mb-4 animate-float">
+                <i class="fas fa-graduation-cap text-4xl text-brand-400"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white font-display">IEPC-PEC</h1>
+            <p class="text-teal-300/70 mt-1 text-sm">Sistema de Gestion Escolar</p>
+        </div>
+
+        <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 animate-fadeInUp" style="animation-delay:0.15s">
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-white font-display">Bienvenido</h2>
+                <p class="text-teal-200/60 text-sm mt-1">Inicia sesion con tu cuenta de Google</p>
+            </div>
+
+            <!-- Botón principal Google Sign-In -->
+            <button id="google-signin-btn" onclick="handleGoogleSignIn()" class="google-btn">
+                <svg viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span id="google-btn-text">Iniciar sesion con Google</span>
+                <div class="google-spinner"></div>
+            </button>
+
+            <!-- Error message -->
+            <div id="login-error" class="hidden mt-4 p-3 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-sm text-center">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                <span id="login-error-text">Error al iniciar sesion</span>
+            </div>
+
+            <div class="mt-6 flex items-center gap-3">
+                <div class="flex-1 h-px bg-white/10"></div>
+                <span class="text-white/30 text-xs">o</span>
+                <div class="flex-1 h-px bg-white/10"></div>
+            </div>
+
+            <!-- Acceso invitado -->
+            <button onclick="handleGuestAccess()" class="w-full mt-4 py-3 rounded-xl border border-white/10 text-white/50 font-medium text-sm hover:bg-white/5 hover:text-white/70 transition-all flex items-center justify-center gap-2">
+                <i class="fas fa-eye text-xs"></i> Acceder como invitado (solo lectura)
+            </button>
+
+            <p class="text-white/25 text-xs text-center mt-6">
+                Al iniciar sesion, aceptas los terminos de uso del sistema IEPC-PEC
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== APP PRINCIPAL ==================== -->
+<div id="main-app" class="hidden">
+
+    <!-- Header Mobile -->
+    <header id="mobile-header" class="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-14 border-b" style="background:var(--bg-sidebar); border-color:var(--border);">
+        <button onclick="toggleSidebar()" class="text-white/70 hover:text-white text-xl"><i class="fas fa-bars"></i></button>
+        <span class="font-display font-bold text-white text-lg">IEPC-PEC</span>
+        <button onclick="toggleTheme()" class="text-white/70 hover:text-white text-lg" id="theme-btn-mobile"><i class="fas fa-moon"></i></button>
+    </header>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar flex flex-col">
+        <div class="p-5 border-b border-white/5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-brand-500/20 flex items-center justify-center">
+                    <i class="fas fa-graduation-cap text-brand-400 text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-white font-display font-bold text-lg leading-tight">IEPC-PEC</h2>
+                    <p class="text-slate-500 text-xs">Gestion Escolar</p>
+                </div>
+            </div>
+        </div>
+        <nav class="flex-1 py-4 overflow-y-auto">
+            <div class="nav-item active" data-section="dashboard" onclick="navigateTo('dashboard')">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </div>
+            <div class="nav-item" data-section="maestros" onclick="navigateTo('maestros')">
+                <i class="fas fa-user-tie"></i> Maestros
+            </div>
+            <div class="nav-item" data-section="estudiantes" onclick="navigateTo('estudiantes')">
+                <i class="fas fa-user-graduate"></i> Estudiantes
+            </div>
+            <div class="nav-item" data-section="bitacora" onclick="navigateTo('bitacora')">
+                <i class="fas fa-book"></i> Bitacora
+            </div>
+            <div class="nav-item" data-section="toma-lista" onclick="navigateTo('toma-lista')">
+                <i class="fas fa-clipboard-check"></i> Toma de Lista
+            </div>
+        </nav>
+        <div class="p-4 border-t border-white/5 space-y-3">
+            <button onclick="toggleTheme()" class="flex items-center gap-3 text-slate-400 hover:text-white text-sm w-full px-3 py-2 rounded-lg hover:bg-white/5 transition" id="theme-btn-desktop">
+                <i class="fas fa-moon w-5 text-center"></i> <span id="theme-label">Modo Claro</span>
+            </button>
+            <div class="flex items-center gap-3 px-3">
+                <div class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-brand-500/20" id="user-avatar-wrapper">
+                    <img id="user-avatar-img" src="" alt="" class="w-full h-full object-cover hidden">
+                    <div id="user-avatar-letter" class="w-full h-full flex items-center justify-center text-brand-400 text-xs font-bold">?</div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-white text-xs font-semibold truncate" id="user-display-name">Invitado</p>
+                    <p class="text-slate-500 text-[10px] truncate" id="user-email">-</p>
+                </div>
+                <button onclick="handleLogout()" class="text-slate-500 hover:text-red-400 transition" title="Cerrar sesion"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main id="main-content">
+
+        <!-- ============ DASHBOARD ============ -->
+        <section id="section-dashboard" class="section-page active">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-display font-bold">Panel Principal</h1>
+                    <p class="text-sm mt-1" style="color:var(--text-secondary)">Resumen de actividad escolar</p>
+                </div>
+                <div class="text-sm font-medium px-3 py-1.5 rounded-lg" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)">
+                    <i class="far fa-calendar-alt mr-1"></i> <span id="dash-date"></span>
+                </div>
+            </div>
+
+            <!-- 4 Tarjetas -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+                <div class="dash-card card-teal animate-fadeInUp" style="animation-delay:0.05s">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-secondary)">Total Estudiantes</p>
+                            <p class="text-3xl font-display font-bold mt-1" id="card-total">0</p>
+                            <p class="text-xs mt-1" style="color:#14B8A6"><i class="fas fa-users mr-1"></i> Registrados</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center"><i class="fas fa-users text-teal-500"></i></div>
+                    </div>
+                    <canvas id="spark-total" height="40" class="mt-3 w-full"></canvas>
+                </div>
+                <div class="dash-card card-green animate-fadeInUp" style="animation-delay:0.1s">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-secondary)">Asistencias Hoy</p>
+                            <p class="text-3xl font-display font-bold mt-1" id="card-presentes">0</p>
+                            <p class="text-xs mt-1" style="color:#10B981" id="card-presentes-pct">0% del total</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center"><i class="fas fa-check-circle text-emerald-500"></i></div>
+                    </div>
+                    <canvas id="spark-presentes" height="40" class="mt-3 w-full"></canvas>
+                </div>
+                <div class="dash-card card-rose animate-fadeInUp" style="animation-delay:0.15s">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-secondary)">Ausentes Hoy</p>
+                            <p class="text-3xl font-display font-bold mt-1" id="card-ausentes">0</p>
+                            <p class="text-xs mt-1" style="color:#F43F5E" id="card-ausentes-pct">0% del total</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center"><i class="fas fa-times-circle text-rose-500"></i></div>
+                    </div>
+                    <canvas id="spark-ausentes" height="40" class="mt-3 w-full"></canvas>
+                </div>
+                <div class="dash-card card-amber animate-fadeInUp" style="animation-delay:0.2s">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-secondary)">Atrasos Hoy</p>
+                            <p class="text-3xl font-display font-bold mt-1" id="card-atrasos">0</p>
+                            <p class="text-xs mt-1" style="color:#F59E0B" id="card-atrasos-pct">0% del total</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center"><i class="fas fa-clock text-amber-500"></i></div>
+                    </div>
+                    <canvas id="spark-atrasos" height="40" class="mt-3 w-full"></canvas>
+                </div>
+            </div>
+
+            <!-- Licencias Hoy -->
+            <div class="mb-6 animate-fadeInUp" style="animation-delay:0.25s">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-display font-bold"><i class="fas fa-file-medical text-purple-400 mr-2"></i>Licencias Registradas Hoy</h2>
+                    <span class="text-xs px-2 py-1 rounded-md font-semibold badge-purple" id="license-count">0</span>
+                </div>
+                <div id="licenses-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div class="text-sm text-center py-6" style="color:var(--text-secondary)">Sin licencias registradas hoy</div>
+                </div>
+            </div>
+
+            <!-- Gráfico Torta + Resumen -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="animate-fadeInUp" style="animation-delay:0.3s; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:24px;">
+                    <h2 class="text-lg font-display font-bold mb-4">Distribucion Diaria</h2>
+                    <div class="relative" style="max-width:300px; margin:0 auto;">
+                        <canvas id="pie-chart"></canvas>
+                    </div>
+                </div>
+                <div class="animate-fadeInUp" style="animation-delay:0.35s; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:24px;">
+                    <h2 class="text-lg font-display font-bold mb-4">Resumen Rapido</h2>
+                    <div id="quick-summary" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Mapa de Calor -->
+            <div class="animate-fadeInUp" style="animation-delay:0.4s; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:24px;">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-display font-bold"><i class="fas fa-fire text-orange-400 mr-2"></i>Mapa de Calor - Asistencia Mensual</h2>
+                    <div class="flex items-center gap-2 text-xs" style="color:var(--text-secondary)">
+                        <span>Bajo</span>
+                        <div class="flex gap-1">
+                            <div class="w-4 h-4 rounded" style="background:#1E2D45"></div>
+                            <div class="w-4 h-4 rounded" style="background:#7C3AED"></div>
+                            <div class="w-4 h-4 rounded" style="background:#DC2626"></div>
+                            <div class="w-4 h-4 rounded" style="background:#F59E0B"></div>
+                            <div class="w-4 h-4 rounded" style="background:#10B981"></div>
+                        </div>
+                        <span>Alto</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-1.5 text-center mb-2">
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Lun</div>
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Mar</div>
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Mie</div>
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Jue</div>
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Vie</div>
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Sab</div>
+                    <div class="text-xs font-semibold" style="color:var(--text-secondary)">Dom</div>
+                </div>
+                <div id="heatmap-grid" class="grid grid-cols-7 gap-1.5"></div>
+            </div>
+        </section>
+
+        <!-- ============ MAESTROS ============ -->
+        <section id="section-maestros" class="section-page">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-display font-bold">Gestion de Maestros</h1>
+                    <p class="text-sm mt-1" style="color:var(--text-secondary)">Perfil y registro de docentes</p>
+                </div>
+                <button onclick="openModal('modal-maestro')" class="btn-primary"><i class="fas fa-plus"></i> Nuevo Maestro</button>
+            </div>
+            <div class="mb-6 p-6 rounded-2xl" style="background:var(--bg-card);border:1px solid var(--border);">
+                <h2 class="text-lg font-display font-bold mb-4"><i class="fas fa-id-badge text-brand-400 mr-2"></i>Mi Perfil</h2>
+                <div class="flex flex-col sm:flex-row items-start gap-5">
+                    <div class="w-20 h-20 rounded-2xl overflow-hidden bg-brand-500/10 flex items-center justify-center flex-shrink-0" id="profile-avatar-wrapper">
+                        <img id="profile-avatar-img" src="" alt="" class="w-full h-full object-cover hidden">
+                        <span id="profile-avatar-letter" class="text-brand-400 text-3xl font-display font-bold">?</span>
+                    </div>
+                    <div class="flex-1 space-y-2">
+                        <p class="text-lg font-semibold" id="profile-name">Invitado</p>
+                        <p class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-envelope mr-2"></i><span id="profile-email">-</span></p>
+                        <p class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-phone mr-2"></i><span id="profile-phone">-</span></p>
+                        <p class="text-sm" style="color:var(--text-secondary)"><i class="fas fa-star mr-2"></i><span id="profile-specialty">-</span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-2xl overflow-hidden" style="background:var(--bg-card);border:1px solid var(--border);">
+                <div class="p-4 border-b" style="border-color:var(--border)">
+                    <h3 class="font-display font-bold">Maestros Registrados</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="data-table">
+                        <thead><tr><th>#</th><th>Nombre Completo</th><th>Celular</th><th>Especialidad</th><th>Acciones</th></tr></thead>
+                        <tbody id="maestros-table-body">
+                            <tr><td colspan="5" class="text-center py-8" style="color:var(--text-secondary)">No hay maestros registrados</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ ESTUDIANTES ============ -->
+        <section id="section-estudiantes" class="section-page">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-display font-bold">Gestion de Estudiantes</h1>
+                    <p class="text-sm mt-1" style="color:var(--text-secondary)">Busqueda y filtrado de estudiantes</p>
+                </div>
+                <div class="flex gap-2 no-print">
+                    <button onclick="exportCSV()" class="btn-secondary"><i class="fas fa-file-csv"></i> CSV</button>
+                    <button onclick="window.print()" class="btn-secondary"><i class="fas fa-print"></i> Imprimir</button>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl mb-4 flex flex-col sm:flex-row gap-3" style="background:var(--bg-card);border:1px solid var(--border);">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2" style="color:var(--text-secondary)"></i>
+                    <input type="text" id="student-search" class="form-input pl-10" placeholder="Buscar por nombre o apellido..." oninput="filterStudents()">
+                </div>
+                <select id="student-filter-status" class="form-input w-auto" onchange="filterStudents()">
+                    <option value="todos">Todos los estados</option>
+                    <option value="presente">Asistio</option>
+                    <option value="ausente">Ausente</option>
+                    <option value="atraso">Con atraso</option>
+                    <option value="licencia">Con licencia</option>
+                </select>
+            </div>
+            <div class="rounded-2xl overflow-hidden" style="background:var(--bg-card);border:1px solid var(--border);">
+                <div class="overflow-x-auto">
+                    <table class="data-table">
+                        <thead><tr><th>#</th><th>Estudiante</th><th>Tutor</th><th>Celular</th><th>Estado Hoy</th><th>Observaciones</th></tr></thead>
+                        <tbody id="estudiantes-table-body">
+                            <tr><td colspan="6" class="text-center py-8" style="color:var(--text-secondary)">No hay estudiantes registrados</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ BITACORA ============ -->
+        <section id="section-bitacora" class="section-page">
+            <div class="mb-6">
+                <h1 class="text-2xl font-display font-bold">Bitacora</h1>
+                <p class="text-sm mt-1" style="color:var(--text-secondary)">Registro de maestros y estudiantes</p>
+            </div>
+            <div id="bitacora-locked" class="hidden text-center py-16">
+                <i class="fas fa-lock text-5xl mb-4" style="color:var(--text-secondary)"></i>
+                <p class="text-lg font-semibold">Seccion protegida</p>
+                <p class="text-sm mb-4" style="color:var(--text-secondary)">Inicie sesion con Google para acceder a la bitacora</p>
+                <button onclick="handleGoogleSignIn()" class="google-btn" style="width:auto;display:inline-flex;padding:10px 20px;font-size:14px;">
+                    <svg viewBox="0 0 24 24" style="width:18px;height:18px;">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Iniciar sesion con Google
+                </button>
+            </div>
+            <div id="bitacora-content">
+                <div class="flex gap-2 mb-5">
+                    <button onclick="switchBitacoraTab('reg-maestro')" class="px-4 py-2 rounded-lg text-sm font-semibold transition bitacora-tab active" data-tab="reg-maestro" style="background:rgba(20,184,166,0.15);color:#14B8A6;">Registro Maestro</button>
+                    <button onclick="switchBitacoraTab('reg-estudiante')" class="px-4 py-2 rounded-lg text-sm font-semibold transition bitacora-tab" data-tab="reg-estudiante" style="background:var(--bg-card);color:var(--text-secondary);">Registro Estudiante</button>
+                </div>
+                <div id="tab-reg-maestro" class="bitacora-tab-content">
+                    <div class="p-6 rounded-2xl" style="background:var(--bg-card);border:1px solid var(--border);">
+                        <h3 class="font-display font-bold mb-4">Registrar Nuevo Maestro</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Nombre</label><input type="text" id="bit-nombre-m" class="form-input" placeholder="Nombre"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Apellido</label><input type="text" id="bit-apellido-m" class="form-input" placeholder="Apellido"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Celular</label><input type="text" id="bit-celular-m" class="form-input" placeholder="77712345"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Especialidad</label><input type="text" id="bit-especialidad-m" class="form-input" placeholder="Matematicas"></div>
+                        </div>
+                        <button onclick="saveMaestro()" class="btn-primary mt-5"><i class="fas fa-save"></i> Guardar Maestro</button>
+                    </div>
+                </div>
+                <div id="tab-reg-estudiante" class="bitacora-tab-content hidden">
+                    <div class="p-6 rounded-2xl mb-5" style="background:var(--bg-card);border:1px solid var(--border);">
+                        <h3 class="font-display font-bold mb-4">Registrar Nuevo Estudiante</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Nombre</label><input type="text" id="bit-nombre-e" class="form-input" placeholder="Nombre"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Apellido</label><input type="text" id="bit-apellido-e" class="form-input" placeholder="Apellido"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">CI</label><input type="text" id="bit-ci-e" class="form-input" placeholder="1234567"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Celular</label><input type="text" id="bit-celular-e" class="form-input" placeholder="77712345"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Tutor</label><input type="text" id="bit-tutor-e" class="form-input" placeholder="Nombre del tutor"></div>
+                            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Domicilio</label><input type="text" id="bit-domicilio-e" class="form-input" placeholder="Calle y numero"></div>
+                        </div>
+                        <button onclick="saveEstudiante()" class="btn-primary mt-5"><i class="fas fa-save"></i> Guardar Estudiante</button>
+                    </div>
+                    <div class="rounded-2xl overflow-hidden" style="background:var(--bg-card);border:1px solid var(--border);">
+                        <div class="p-4 border-b flex items-center justify-between" style="border-color:var(--border)">
+                            <h3 class="font-display font-bold">Estudiantes Registrados</h3>
+                            <div class="flex gap-2">
+                                <button onclick="exportCSV()" class="btn-secondary text-xs py-2 px-3"><i class="fas fa-file-csv"></i> CSV</button>
+                                <button onclick="window.print()" class="btn-secondary text-xs py-2 px-3"><i class="fas fa-print"></i> Imprimir</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="data-table" id="bitacora-student-table">
+                                <thead><tr><th>#</th><th>Nombre</th><th>Apellido</th><th>CI</th><th>Celular</th><th>Tutor</th><th>Domicilio</th><th>Acciones</th></tr></thead>
+                                <tbody id="bitacora-students-body">
+                                    <tr><td colspan="8" class="text-center py-8" style="color:var(--text-secondary)">No hay estudiantes registrados</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ TOMA DE LISTA ============ -->
+        <section id="section-toma-lista" class="section-page">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-display font-bold">Toma de Lista</h1>
+                    <p class="text-sm mt-1" style="color:var(--text-secondary)">Registro rapido de asistencia</p>
+                </div>
+                <div class="flex gap-3 items-center">
+                    <input type="date" id="attendance-date" class="form-input w-auto" onchange="renderAttendanceSheet()">
+                    <button onclick="saveAttendance()" class="btn-primary"><i class="fas fa-save"></i> Guardar</button>
+                </div>
+            </div>
+            <div class="p-4 rounded-2xl mb-4" style="background:var(--bg-card);border:1px solid var(--border);">
+                <div class="flex flex-col sm:flex-row gap-3 items-end">
+                    <div class="flex-1"><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Registrar Licencia Rapida</label><select id="license-student-select" class="form-input"><option value="">Seleccionar estudiante...</option></select></div>
+                    <div class="flex-1"><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Motivo</label><input type="text" id="license-reason" class="form-input" placeholder="Motivo de la licencia"></div>
+                    <button onclick="saveLicense()" class="btn-primary whitespace-nowrap"><i class="fas fa-file-medical"></i> Registrar</button>
+                </div>
+            </div>
+            <div class="rounded-2xl overflow-hidden" style="background:var(--bg-card);border:1px solid var(--border);">
+                <div class="overflow-x-auto">
+                    <table class="data-table" id="attendance-table">
+                        <thead><tr><th>#</th><th>Estudiante</th><th class="text-center">Asistio</th><th class="text-center">Ausente</th><th class="text-center">Atraso</th><th class="text-center">Licencia</th><th>Incidencias</th><th>Observaciones</th></tr></thead>
+                        <tbody id="attendance-body">
+                            <tr><td colspan="8" class="text-center py-8" style="color:var(--text-secondary)">Seleccione una fecha para cargar la lista</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- ==================== MODAL MAESTRO ==================== -->
+<div id="modal-maestro" class="modal-overlay">
+    <div class="modal-box">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-display font-bold">Registrar Maestro</h3>
+            <button onclick="closeModal('modal-maestro')" class="text-xl" style="color:var(--text-secondary)">&times;</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Nombre</label><input type="text" id="modal-nombre-m" class="form-input" placeholder="Nombre"></div>
+            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Apellido</label><input type="text" id="modal-apellido-m" class="form-input" placeholder="Apellido"></div>
+            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Celular</label><input type="text" id="modal-celular-m" class="form-input" placeholder="77712345"></div>
+            <div><label class="block text-xs font-semibold mb-1.5" style="color:var(--text-secondary)">Especialidad</label><input type="text" id="modal-especialidad-m" class="form-input" placeholder="Especialidad"></div>
+        </div>
+        <button onclick="saveMaestroFromModal()" class="btn-primary mt-6 w-full justify-center"><i class="fas fa-save"></i> Guardar</button>
+    </div>
+</div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+// ============================================
+// CONFIGURACION FIREBASE
+// ============================================
+const firebaseConfig = {
+    apiKey: 'AIzaSyAhsn87Ymkv7MrOD-5aQiDCCzFCs-V8oZI',
+    authDomain: 'iepc-pec.firebaseapp.com',
+    databaseURL: 'https://iepc-pec-default-rtdb.firebaseio.com',
+    projectId: 'iepc-pec',
+    storageBucket: 'iepc-pec.firebasestorage.app',
+    messagingSenderId: '962879217189',
+    appId: '1:962879217189:web:5a4e27ed8ab58838d6e9cc',
+    measurementId: 'G-RXCC1PXD7J'
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+// ============================================
+// ESTADO GLOBAL
+// ============================================
+const state = {
+    user: null,
+    isGuest: false,
+    currentSection: 'dashboard',
+    darkMode: true,
+    students: {},
+    teachers: {},
+    todayAttendance: {},
+    licenses: {},
+    monthlyAttendance: {},
+    sparkData: { total: [], presentes: [], ausentes: [], atrasos: [] }
+};
+
+let pieChart = null;
+
+// ============================================
+// UTILIDADES
+// ============================================
+function getTodayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `${parseInt(parts[2])} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+function animateValue(el, start, end, duration) {
+    const range = end - start;
+    const startTime = performance.now();
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.floor(start + range * eased);
+        if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+}
+
+function getStatusBadge(estado) {
+    const map = {
+        presente: '<span class="badge badge-green">Asistio</span>',
+        ausente: '<span class="badge badge-red">Ausente</span>',
+        atraso: '<span class="badge badge-amber">Atraso</span>',
+        licencia: '<span class="badge badge-purple">Licencia</span>'
+    };
+    return map[estado] || '<span class="badge" style="background:rgba(100,116,139,0.15);color:#64748B">Sin registro</span>';
+}
+
+function getHeatmapColor(pct) {
+    if (pct === null || pct === undefined) return '#1E2D45';
+    if (pct >= 90) return '#10B981';
+    if (pct >= 75) return '#34D399';
+    if (pct >= 60) return '#F59E0B';
+    if (pct >= 40) return '#F97316';
+    if (pct >= 20) return '#EF4444';
+    return '#DC2626';
+}
+
+// ============================================
+// AUTENTICACION CON GOOGLE
+// ============================================
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// Solicitar permisos adicionales si se desea (opcional)
+// googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
+
+// Persistencia de sesión: recordar al usuario
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+auth.onAuthStateChanged(user => {
+    if (user) {
+        state.user = user;
+        state.isGuest = false;
+        showMainApp();
+    } else if (!state.isGuest) {
+        showLoginScreen();
+    }
+});
+
+function handleGoogleSignIn() {
+    const btn = document.getElementById('google-signin-btn');
+    const btnText = document.getElementById('google-btn-text');
+
+    // Estado de carga
+    btn.classList.add('loading');
+    btnText.textContent = 'Conectando...';
+
+    auth.signInWithPopup(googleProvider)
+        .then((result) => {
+            showToast(`Bienvenido, ${result.user.displayName || 'Usuario'}`, 'success');
+        })
+        .catch((error) => {
+            console.error('Error Google Sign-In:', error);
+            let errorMsg = 'Error al iniciar sesion';
+            if (error.code === 'auth/popup-closed-by-user') {
+                errorMsg = 'Se cancelo el inicio de sesion';
+            } else if (error.code === 'auth/popup-blocked') {
+                errorMsg = 'El navegador bloqueo la ventana emergente. Permita ventanas emergentes para este sitio';
+            } else if (error.code === 'auth/cancelled-popup-request') {
+                errorMsg = 'Ya hay una ventana de inicio de sesion abierta';
+            } else if (error.code === 'auth/network-request-failed') {
+                errorMsg = 'Error de conexion. Verifique su internet';
+            }
+
+            const errorEl = document.getElementById('login-error');
+            const errorText = document.getElementById('login-error-text');
+            errorText.textContent = errorMsg;
+            errorEl.classList.remove('hidden');
+
+            showToast(errorMsg, 'error');
+        })
+        .finally(() => {
+            btn.classList.remove('loading');
+            btnText.textContent = 'Iniciar sesion con Google';
+        });
+}
+
+function handleGuestAccess() {
+    state.isGuest = true;
+    state.user = null;
+    showMainApp();
+    showToast('Modo invitado activado (solo lectura)', 'info');
+}
+
+function handleLogout() {
+    auth.signOut().then(() => {
+        state.isGuest = false;
+        state.user = null;
+        showLoginScreen();
+        showToast('Sesion cerrada', 'info');
+    });
+}
+
+function showLoginScreen() {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('main-app').classList.add('hidden');
+    // Limpiar error previo
+    document.getElementById('login-error').classList.add('hidden');
+}
+
+function showMainApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').classList.remove('hidden');
+    updateUserInfo();
+    setupListeners();
+    initDashboard();
+    checkBitacoraAccess();
+}
+
+function updateUserInfo() {
+    const displayName = state.user ? (state.user.displayName || state.user.email.split('@')[0]) : 'Invitado';
+    const email = state.user ? state.user.email : 'Solo lectura';
+    const photoURL = state.user ? state.user.photoURL : null;
+    const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+
+    // Sidebar
+    document.getElementById('user-display-name').textContent = displayName;
+    document.getElementById('user-email').textContent = email;
+
+    // Avatar del sidebar
+    const avatarImg = document.getElementById('user-avatar-img');
+    const avatarLetter = document.getElementById('user-avatar-letter');
+    if (photoURL) {
+        avatarImg.src = photoURL;
+        avatarImg.classList.remove('hidden');
+        avatarLetter.classList.add('hidden');
+    } else {
+        avatarImg.classList.add('hidden');
+        avatarLetter.classList.remove('hidden');
+        avatarLetter.textContent = initials;
+    }
+
+    // Perfil en sección Maestros
+    document.getElementById('profile-name').textContent = displayName;
+    document.getElementById('profile-email').textContent = email;
+
+    const profileImg = document.getElementById('profile-avatar-img');
+    const profileLetter = document.getElementById('profile-avatar-letter');
+    if (photoURL) {
+        profileImg.src = photoURL;
+        profileImg.classList.remove('hidden');
+        profileLetter.classList.add('hidden');
+    } else {
+        profileImg.classList.add('hidden');
+        profileLetter.classList.remove('hidden');
+        profileLetter.textContent = initials;
+    }
+}
+
+function checkBitacoraAccess() {
+    const locked = document.getElementById('bitacora-locked');
+    const content = document.getElementById('bitacora-content');
+    if (state.isGuest) {
+        locked.classList.remove('hidden');
+        content.classList.add('hidden');
+    } else {
+        locked.classList.add('hidden');
+        content.classList.remove('hidden');
+    }
+}
+
+// ============================================
+// NAVEGACION
+// ============================================
+function navigateTo(section) {
+    state.currentSection = section;
+    document.querySelectorAll('.section-page').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const target = document.getElementById(`section-${section}`);
+    if (target) target.classList.add('active');
+    const navItem = document.querySelector(`.nav-item[data-section="${section}"]`);
+    if (navItem) navItem.classList.add('active');
+    if (window.innerWidth < 1024) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+    }
+    if (section === 'dashboard') refreshDashboard();
+    if (section === 'estudiantes') renderStudentsTable();
+    if (section === 'maestros') renderTeachersTable();
+    if (section === 'toma-lista') initAttendanceSheet();
+    if (section === 'bitacora') { checkBitacoraAccess(); renderBitacoraStudents(); }
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('active');
+}
+
+// ============================================
+// TEMA OSCURO / CLARO
+// ============================================
+function toggleTheme() {
+    state.darkMode = !state.darkMode;
+    document.documentElement.classList.toggle('dark', state.darkMode);
+    const icon = state.darkMode ? 'fa-moon' : 'fa-sun';
+    const label = state.darkMode ? 'Modo Claro' : 'Modo Oscuro';
+    document.querySelectorAll('#theme-btn-desktop i, #theme-btn-mobile i').forEach(i => i.className = `fas ${icon}`);
+    document.getElementById('theme-label').textContent = label;
+    localStorage.setItem('theme', state.darkMode ? 'dark' : 'light');
+    if (pieChart) updatePieChart();
+}
+
+function loadTheme() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+        state.darkMode = false;
+        document.documentElement.classList.remove('dark');
+        document.querySelectorAll('#theme-btn-desktop i, #theme-btn-mobile i').forEach(i => i.className = 'fas fa-sun');
+        document.getElementById('theme-label').textContent = 'Modo Oscuro';
+    }
+}
+
+// ============================================
+// LISTENERS FIREBASE (TIEMPO REAL)
+// ============================================
+let listenersSetup = false;
+function setupListeners() {
+    if (listenersSetup) return;
+    listenersSetup = true;
+
+    db.ref('estudiantes').on('value', snap => {
+        state.students = snap.val() || {};
+        refreshDashboard(); renderStudentsTable(); renderBitacoraStudents();
+        renderAttendanceSheet(); updateLicenseStudentSelect();
+    });
+
+    db.ref('maestros').on('value', snap => {
+        state.teachers = snap.val() || {};
+        renderTeachersTable();
+    });
+
+    const todayKey = getTodayKey();
+    db.ref(`asistencia/${todayKey}`).on('value', snap => {
+        state.todayAttendance = snap.val() || {};
+        refreshDashboard(); renderStudentsTable();
+    });
+
+    db.ref(`licencias/${todayKey}`).on('value', snap => {
+        state.licenses = snap.val() || {};
+        refreshDashboard(); renderLicensesList();
+    });
+
+    const now = new Date();
+    const monthPrefix = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    db.ref('asistencia').orderByKey().startAt(monthPrefix).endAt(monthPrefix + '\uf8ff').on('value', snap => {
+        state.monthlyAttendance = snap.val() || {};
+        renderHeatmap();
+    });
+}
+
+// ============================================
+// DASHBOARD
+// ============================================
+function initDashboard() {
+    document.getElementById('dash-date').textContent = formatDate(getTodayKey());
+    document.getElementById('attendance-date').value = getTodayKey();
+    refreshDashboard();
+}
+
+function refreshDashboard() {
+    const students = state.students || {};
+    const attendance = state.todayAttendance || {};
+    const studentCount = Object.keys(students).length;
+    let presentes = 0, ausentes = 0, atrasos = 0, licencias = 0;
+    Object.values(attendance).forEach(a => {
+        if (a.estado === 'presente') presentes++;
+        else if (a.estado === 'ausente') ausentes++;
+        else if (a.estado === 'atraso') atrasos++;
+        else if (a.estado === 'licencia') licencias++;
+    });
+    const pctPresentes = studentCount ? Math.round((presentes / studentCount) * 100) : 0;
+    const pctAusentes = studentCount ? Math.round((ausentes / studentCount) * 100) : 0;
+    const pctAtrasos = studentCount ? Math.round((atrasos / studentCount) * 100) : 0;
+
+    animateValue(document.getElementById('card-total'), 0, studentCount, 800);
+    animateValue(document.getElementById('card-presentes'), 0, presentes, 800);
+    animateValue(document.getElementById('card-ausentes'), 0, ausentes, 800);
+    animateValue(document.getElementById('card-atrasos'), 0, atrasos, 800);
+
+    document.getElementById('card-presentes-pct').textContent = `${pctPresentes}% del total`;
+    document.getElementById('card-ausentes-pct').textContent = `${pctAusentes}% del total`;
+    document.getElementById('card-atrasos-pct').textContent = `${pctAtrasos}% del total`;
+
+    state.sparkData.total.push(studentCount);
+    state.sparkData.presentes.push(presentes);
+    state.sparkData.ausentes.push(ausentes);
+    state.sparkData.atrasos.push(atrasos);
+    Object.keys(state.sparkData).forEach(k => {
+        if (state.sparkData[k].length > 10) state.sparkData[k] = state.sparkData[k].slice(-10);
+    });
+
+    drawSparkline('spark-total', state.sparkData.total, '#14B8A6');
+    drawSparkline('spark-presentes', state.sparkData.presentes, '#10B981');
+    drawSparkline('spark-ausentes', state.sparkData.ausentes, '#F43F5E');
+    drawSparkline('spark-atrasos', state.sparkData.atrasos, '#F59E0B');
+
+    updatePieChart(presentes, ausentes, atrasos, licencias, studentCount - presentes - ausentes - atrasos - licencias);
+    renderQuickSummary(presentes, ausentes, atrasos, licencias, studentCount);
+    renderLicensesList();
+}
+
+function drawSparkline(canvasId, data, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.offsetWidth; const h = canvas.offsetHeight;
+    canvas.width = w * 2; canvas.height = h * 2;
+    ctx.scale(2, 2); ctx.clearRect(0, 0, w, h);
+    if (data.length < 2) return;
+    const maxVal = Math.max(...data, 1); const minVal = Math.min(...data, 0);
+    const range = maxVal - minVal || 1; const step = w / (data.length - 1);
+    const gradient = ctx.createLinearGradient(0, 0, 0, h);
+    gradient.addColorStop(0, color + '30'); gradient.addColorStop(1, color + '00');
+    ctx.beginPath(); ctx.moveTo(0, h);
+    data.forEach((val, i) => { ctx.lineTo(i * step, h - ((val - minVal) / range) * (h - 4) - 2); });
+    ctx.lineTo(w, h); ctx.closePath(); ctx.fillStyle = gradient; ctx.fill();
+    ctx.beginPath();
+    data.forEach((val, i) => { const y = h - ((val - minVal) / range) * (h - 4) - 2; if (i === 0) ctx.moveTo(0, y); else ctx.lineTo(i * step, y); });
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+    const lastY = h - ((data[data.length - 1] - minVal) / range) * (h - 4) - 2;
+    ctx.beginPath(); ctx.arc((data.length - 1) * step, lastY, 3, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+}
+
+function updatePieChart(presentes, ausentes, atrasos, licencias, sinRegistro) {
+    presentes = presentes || 0; ausentes = ausentes || 0; atrasos = atrasos || 0;
+    licencias = licencias || 0; sinRegistro = Math.max(0, sinRegistro || 0);
+    const ctx = document.getElementById('pie-chart');
+    if (!ctx) return;
+    const textColor = state.darkMode ? '#F1F5F9' : '#1E293B';
+    const data = {
+        labels: ['Asistencias', 'Ausentes', 'Atrasos', 'Licencias', 'Sin Registro'],
+        datasets: [{ data: [presentes, ausentes, atrasos, licencias, sinRegistro],
+            backgroundColor: ['#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#475569'],
+            borderColor: state.darkMode ? '#151F32' : '#FFFFFF', borderWidth: 3, hoverOffset: 8 }]
+    };
+    if (pieChart) { pieChart.data = data; pieChart.options.plugins.legend.labels.color = textColor; pieChart.update(); return; }
+    pieChart = new Chart(ctx, {
+        type: 'doughnut', data: data,
+        options: { responsive: true, cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { color: textColor, padding: 12, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, family: 'DM Sans' } } },
+                tooltip: { backgroundColor: '#1E293B', titleColor: '#F1F5F9', bodyColor: '#94A3B8', cornerRadius: 8, padding: 10 } } }
+    });
+}
+
+function renderQuickSummary(presentes, ausentes, atrasos, licencias, total) {
+    const container = document.getElementById('quick-summary');
+    if (!container) return;
+    const items = [
+        { label: 'Asistencias', value: presentes, total, color: '#10B981', icon: 'fa-check' },
+        { label: 'Ausencias', value: ausentes, total, color: '#EF4444', icon: 'fa-times' },
+        { label: 'Atrasos', value: atrasos, total, color: '#F59E0B', icon: 'fa-clock' },
+        { label: 'Licencias', value: licencias, total, color: '#8B5CF6', icon: 'fa-file' }
+    ];
+    container.innerHTML = items.map(item => {
+        const pct = total ? Math.round((item.value / total) * 100) : 0;
+        return `<div class="flex items-center gap-3"><div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:${item.color}15"><i class="fas ${item.icon} text-xs" style="color:${item.color}"></i></div><div class="flex-1"><div class="flex justify-between text-sm mb-1"><span>${item.label}</span><span class="font-semibold">${item.value} (${pct}%)</span></div><div class="w-full h-2 rounded-full" style="background:var(--border)"><div class="h-2 rounded-full transition-all duration-700" style="width:${pct}%;background:${item.color}"></div></div></div></div>`;
+    }).join('');
+}
+
+function renderLicensesList() {
+    const container = document.getElementById('licenses-list');
+    const licenses = state.licenses || {}; const students = state.students || {};
+    const entries = Object.entries(licenses);
+    document.getElementById('license-count').textContent = entries.length;
+    if (entries.length === 0) { container.innerHTML = '<div class="text-sm text-center py-6 col-span-full" style="color:var(--text-secondary)">Sin licencias registradas hoy</div>'; return; }
+    container.innerHTML = entries.map(([id, lic]) => {
+        const studentName = lic.estudianteNombre || (lic.estudianteId && students[lic.estudianteId] ? `${students[lic.estudianteId].nombre} ${students[lic.estudianteId].apellido}` : 'Desconocido');
+        return `<div class="license-card"><div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0"><i class="fas fa-file-medical text-purple-400"></i></div><div class="flex-1 min-w-0"><p class="font-semibold text-sm truncate">${studentName}</p><p class="text-xs truncate" style="color:var(--text-secondary)">${lic.motivo || 'Sin motivo'}</p></div>${!state.isGuest ? `<button onclick="deleteLicense('${id}')" class="text-red-400 hover:text-red-300 text-xs" title="Eliminar"><i class="fas fa-trash"></i></button>` : ''}</div>`;
+    }).join('');
+}
+
+function renderHeatmap() {
+    const container = document.getElementById('heatmap-grid');
+    if (!container) return;
+    const now = new Date(); const year = now.getFullYear(); const month = now.getMonth(); const today = now.getDate();
+    const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0);
+    const totalDays = lastDay.getDate();
+    let startDow = firstDay.getDay(); startDow = startDow === 0 ? 6 : startDow - 1;
+    const students = state.students || {}; const studentCount = Object.keys(students).length;
+    const monthlyAtt = state.monthlyAttendance || {};
+    let html = '';
+    for (let i = 0; i < startDow; i++) html += '<div></div>';
+    for (let day = 1; day <= totalDays; day++) {
+        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayAttendance = monthlyAtt[dateKey] || {};
+        const dayTotal = Object.keys(dayAttendance).length;
+        let pct = null;
+        if (dayTotal > 0 && studentCount > 0) { let dayPresentes = 0; Object.values(dayAttendance).forEach(a => { if (a.estado === 'presente') dayPresentes++; }); pct = Math.round((dayPresentes / studentCount) * 100); }
+        const isToday = day === today; const isFuture = day > today;
+        const bg = isFuture ? 'var(--border)' : getHeatmapColor(pct);
+        const opacity = isFuture ? '0.3' : '1';
+        html += `<div class="heatmap-cell" style="background:${bg};opacity:${opacity};${isToday ? 'box-shadow:0 0 0 2px #14B8A6;' : ''}"><div class="heatmap-tooltip">${formatDate(dateKey)}${pct !== null ? ` - ${pct}% asistencia` : (isFuture ? ' - Futuro' : ' - Sin datos')}</div><span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold" style="color:${pct !== null && pct >= 40 ? 'var(--text-primary)' : 'var(--text-secondary)'}">${day}</span></div>`;
+    }
+    container.innerHTML = html;
+}
+
+// ============================================
+// MAESTROS - CRUD
+// ============================================
+function saveMaestro() {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    const nombre = document.getElementById('bit-nombre-m').value.trim();
+    const apellido = document.getElementById('bit-apellido-m').value.trim();
+    const celular = document.getElementById('bit-celular-m').value.trim();
+    const especialidad = document.getElementById('bit-especialidad-m').value.trim();
+    if (!nombre || !apellido) { showToast('Nombre y apellido son obligatorios', 'warning'); return; }
+    db.ref('maestros').push({ nombre, apellido, celular, especialidad, createdAt: firebase.database.ServerValue.TIMESTAMP })
+        .then(() => { showToast('Maestro registrado correctamente', 'success'); ['bit-nombre-m','bit-apellido-m','bit-celular-m','bit-especialidad-m'].forEach(id => document.getElementById(id).value = ''); })
+        .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function saveMaestroFromModal() {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    const nombre = document.getElementById('modal-nombre-m').value.trim();
+    const apellido = document.getElementById('modal-apellido-m').value.trim();
+    const celular = document.getElementById('modal-celular-m').value.trim();
+    const especialidad = document.getElementById('modal-especialidad-m').value.trim();
+    if (!nombre || !apellido) { showToast('Nombre y apellido son obligatorios', 'warning'); return; }
+    db.ref('maestros').push({ nombre, apellido, celular, especialidad, createdAt: firebase.database.ServerValue.TIMESTAMP })
+        .then(() => { showToast('Maestro registrado correctamente', 'success'); closeModal('modal-maestro'); })
+        .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function deleteMaestro(id) {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    if (!confirm('Eliminar este maestro?')) return;
+    db.ref(`maestros/${id}`).remove().then(() => showToast('Maestro eliminado', 'info')).catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function renderTeachersTable() {
+    const tbody = document.getElementById('maestros-table-body');
+    if (!tbody) return;
+    const teachers = state.teachers || {}; const entries = Object.entries(teachers);
+    if (entries.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8" style="color:var(--text-secondary)">No hay maestros registrados</td></tr>'; return; }
+    tbody.innerHTML = entries.map(([id, t], i) => `<tr><td>${i + 1}</td><td class="font-semibold">${t.nombre} ${t.apellido}</td><td>${t.celular || '-'}</td><td>${t.especialidad || '-'}</td><td>${!state.isGuest ? `<button onclick="deleteMaestro('${id}')" class="btn-danger text-xs py-1 px-3"><i class="fas fa-trash"></i></button>` : '-'}</td></tr>`).join('');
+    if (state.user) {
+        const userEmail = state.user.email;
+        const matchingTeacher = entries.find(([id, t]) => t.email === userEmail);
+        if (matchingTeacher) { const t = matchingTeacher[1]; document.getElementById('profile-phone').textContent = t.celular || '-'; document.getElementById('profile-specialty').textContent = t.especialidad || '-'; }
+    }
+}
+
+// ============================================
+// ESTUDIANTES - CRUD
+// ============================================
+function saveEstudiante() {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    const nombre = document.getElementById('bit-nombre-e').value.trim();
+    const apellido = document.getElementById('bit-apellido-e').value.trim();
+    const ci = document.getElementById('bit-ci-e').value.trim();
+    const celular = document.getElementById('bit-celular-e').value.trim();
+    const tutor = document.getElementById('bit-tutor-e').value.trim();
+    const domicilio = document.getElementById('bit-domicilio-e').value.trim();
+    if (!nombre || !apellido) { showToast('Nombre y apellido son obligatorios', 'warning'); return; }
+    db.ref('estudiantes').push({ nombre, apellido, ci, celular, tutor, domicilio, createdAt: firebase.database.ServerValue.TIMESTAMP })
+        .then(() => { showToast('Estudiante registrado correctamente', 'success'); ['bit-nombre-e','bit-apellido-e','bit-ci-e','bit-celular-e','bit-tutor-e','bit-domicilio-e'].forEach(id => document.getElementById(id).value = ''); })
+        .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function deleteEstudiante(id) {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    if (!confirm('Eliminar este estudiante?')) return;
+    db.ref(`estudiantes/${id}`).remove().then(() => showToast('Estudiante eliminado', 'info')).catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function renderStudentsTable() {
+    const tbody = document.getElementById('estudiantes-table-body');
+    if (!tbody) return;
+    const students = state.students || {}; const attendance = state.todayAttendance || {};
+    const entries = Object.entries(students);
+    const searchTerm = (document.getElementById('student-search')?.value || '').toLowerCase();
+    const statusFilter = document.getElementById('student-filter-status')?.value || 'todos';
+    const filtered = entries.filter(([id, s]) => {
+        const fullName = `${s.nombre} ${s.apellido}`.toLowerCase();
+        const matchSearch = !searchTerm || fullName.includes(searchTerm);
+        const studentAtt = attendance[id]; const studentStatus = studentAtt ? studentAtt.estado : 'sin_registro';
+        const matchStatus = statusFilter === 'todos' || studentStatus === statusFilter;
+        return matchSearch && matchStatus;
+    });
+    if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8" style="color:var(--text-secondary)">No se encontraron estudiantes</td></tr>'; return; }
+    tbody.innerHTML = filtered.map(([id, s], i) => {
+        const att = attendance[id]; const estado = att ? att.estado : 'sin_registro';
+        const obs = att ? (att.observaciones || '') : '';
+        return `<tr><td>${i + 1}</td><td class="font-semibold">${s.nombre} ${s.apellido}</td><td>${s.tutor || '-'}</td><td>${s.celular || '-'}</td><td>${getStatusBadge(estado)}</td><td class="text-sm" style="color:var(--text-secondary)">${obs || '-'}</td></tr>`;
+    }).join('');
+}
+
+function filterStudents() { renderStudentsTable(); }
+
+function renderBitacoraStudents() {
+    const tbody = document.getElementById('bitacora-students-body');
+    if (!tbody) return;
+    const students = state.students || {}; const entries = Object.entries(students);
+    if (entries.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8" style="color:var(--text-secondary)">No hay estudiantes registrados</td></tr>'; return; }
+    tbody.innerHTML = entries.map(([id, s], i) => `<tr><td>${i + 1}</td><td>${s.nombre}</td><td>${s.apellido}</td><td>${s.ci || '-'}</td><td>${s.celular || '-'}</td><td>${s.tutor || '-'}</td><td>${s.domicilio || '-'}</td><td>${!state.isGuest ? `<button onclick="deleteEstudiante('${id}')" class="btn-danger text-xs py-1 px-3"><i class="fas fa-trash"></i></button>` : '-'}</td></tr>`).join('');
+}
+
+// ============================================
+// BITACORA TABS
+// ============================================
+function switchBitacoraTab(tab) {
+    document.querySelectorAll('.bitacora-tab').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.style.background = isActive ? 'rgba(20,184,166,0.15)' : 'var(--bg-card)';
+        btn.style.color = isActive ? '#14B8A6' : 'var(--text-secondary)';
+    });
+    document.querySelectorAll('.bitacora-tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+}
+
+// ============================================
+// TOMA DE LISTA
+// ============================================
+function initAttendanceSheet() {
+    const dateInput = document.getElementById('attendance-date');
+    if (!dateInput.value) dateInput.value = getTodayKey();
+    renderAttendanceSheet();
+}
+
+function renderAttendanceSheet() {
+    const dateKey = document.getElementById('attendance-date')?.value || getTodayKey();
+    const tbody = document.getElementById('attendance-body');
+    if (!tbody) return;
+    const students = state.students || {}; const entries = Object.entries(students);
+    if (entries.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8" style="color:var(--text-secondary)">No hay estudiantes registrados. Registrelos en la Bitacora.</td></tr>'; return; }
+    db.ref(`asistencia/${dateKey}`).once('value').then(snap => {
+        const existingAttendance = snap.val() || {};
+        tbody.innerHTML = entries.map(([id, s], i) => {
+            const att = existingAttendance[id] || {}; const estado = att.estado || '';
+            const incidencias = att.incidencias || []; const observaciones = att.observaciones || '';
+            return `<tr data-student-id="${id}"><td>${i + 1}</td><td class="font-semibold">${s.nombre} ${s.apellido}</td><td class="text-center"><input type="radio" name="att-${id}" value="presente" class="att-radio presente" id="p-${id}" ${estado === 'presente' ? 'checked' : ''}><label for="p-${id}" class="att-label" title="Asistio">A</label></td><td class="text-center"><input type="radio" name="att-${id}" value="ausente" class="att-radio ausente" id="a-${id}" ${estado === 'ausente' ? 'checked' : ''}><label for="a-${id}" class="att-label" title="Ausente">F</label></td><td class="text-center"><input type="radio" name="att-${id}" value="atraso" class="att-radio atraso" id="t-${id}" ${estado === 'atraso' ? 'checked' : ''}><label for="t-${id}" class="att-label" title="Atraso">T</label></td><td class="text-center"><input type="radio" name="att-${id}" value="licencia" class="att-radio licencia" id="l-${id}" ${estado === 'licencia' ? 'checked' : ''}><label for="l-${id}" class="att-label" title="Licencia">L</label></td><td><div class="flex flex-wrap gap-1"><input type="checkbox" class="inc-check" id="ind-${id}" ${incidencias.includes('indisciplina') ? 'checked' : ''}><label for="ind-${id}" class="inc-label">Indisciplina</label><input type="checkbox" class="inc-check" id="tar-${id}" ${incidencias.includes('tareas') ? 'checked' : ''}><label for="tar-${id}" class="inc-label">Tareas</label><input type="checkbox" class="inc-check" id="uni-${id}" ${incidencias.includes('uniforme') ? 'checked' : ''}><label for="uni-${id}" class="inc-label">Uniforme</label><input type="checkbox" class="inc-check" id="otr-${id}" ${incidencias.includes('otro') ? 'checked' : ''}><label for="otr-${id}" class="inc-label">Otro</label></div></td><td><input type="text" class="form-input text-xs py-1.5" id="obs-${id}" value="${observaciones}" placeholder="Observacion..."></td></tr>`;
+        }).join('');
+    });
+}
+
+function saveAttendance() {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    const dateKey = document.getElementById('attendance-date')?.value || getTodayKey();
+    const rows = document.querySelectorAll('#attendance-body tr[data-student-id]');
+    if (rows.length === 0) { showToast('No hay estudiantes para guardar', 'warning'); return; }
+    const updates = {}; let count = 0;
+    rows.forEach(row => {
+        const studentId = row.dataset.studentId;
+        const radioChecked = row.querySelector(`input[name="att-${studentId}"]:checked`);
+        if (!radioChecked) return;
+        const estado = radioChecked.value; const incidencias = [];
+        if (document.getElementById(`ind-${studentId}`)?.checked) incidencias.push('indisciplina');
+        if (document.getElementById(`tar-${studentId}`)?.checked) incidencias.push('tareas');
+        if (document.getElementById(`uni-${studentId}`)?.checked) incidencias.push('uniforme');
+        if (document.getElementById(`otr-${studentId}`)?.checked) incidencias.push('otro');
+        const observaciones = document.getElementById(`obs-${studentId}`)?.value.trim() || '';
+        updates[studentId] = { estado, incidencias, observaciones, timestamp: Date.now() }; count++;
+    });
+    if (count === 0) { showToast('Marque al menos un estado antes de guardar', 'warning'); return; }
+    db.ref(`asistencia/${dateKey}`).set(updates)
+        .then(() => showToast(`Asistencia guardada: ${count} registros`, 'success'))
+        .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+// ============================================
+// LICENCIAS
+// ============================================
+function updateLicenseStudentSelect() {
+    const select = document.getElementById('license-student-select');
+    if (!select) return;
+    const students = state.students || {}; const current = select.value;
+    select.innerHTML = '<option value="">Seleccionar estudiante...</option>';
+    Object.entries(students).forEach(([id, s]) => { select.innerHTML += `<option value="${id}">${s.nombre} ${s.apellido}</option>`; });
+    select.value = current;
+}
+
+function saveLicense() {
+    if (state.isGuest) { showToast('Solo lectura en modo invitado', 'warning'); return; }
+    const studentId = document.getElementById('license-student-select').value;
+    const motivo = document.getElementById('license-reason').value.trim();
+    const dateKey = document.getElementById('attendance-date')?.value || getTodayKey();
+    if (!studentId) { showToast('Seleccione un estudiante', 'warning'); return; }
+    if (!motivo) { showToast('Ingrese el motivo de la licencia', 'warning'); return; }
+    const student = state.students[studentId];
+    const studentName = student ? `${student.nombre} ${student.apellido}` : 'Desconocido';
+    db.ref(`licencias/${dateKey}`).push({ estudianteId: studentId, estudianteNombre: studentName, motivo, timestamp: Date.now() })
+        .then(() => {
+            db.ref(`asistencia/${dateKey}/${studentId}`).set({ estado: 'licencia', incidencias: [], observaciones: `Licencia: ${motivo}`, timestamp: Date.now() });
+            showToast('Licencia registrada correctamente', 'success');
+            document.getElementById('license-reason').value = '';
+            document.getElementById('license-student-select').value = '';
+        }).catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function deleteLicense(id) {
+    if (state.isGuest) return;
+    db.ref(`licencias/${getTodayKey()}/${id}`).remove().then(() => showToast('Licencia eliminada', 'info')).catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+// ============================================
+// EXPORTAR CSV
+// ============================================
+function exportCSV() {
+    const students = state.students || {}; const entries = Object.entries(students);
+    if (entries.length === 0) { showToast('No hay datos para exportar', 'warning'); return; }
+    const headers = ['Nro', 'Nombre', 'Apellido', 'CI', 'Celular', 'Tutor', 'Domicilio'];
+    const rows = entries.map(([id, s], i) => [i + 1, s.nombre, s.apellido, s.ci || '', s.celular || '', s.tutor || '', s.domicilio || '']);
+    let csv = headers.join(',') + '\n';
+    rows.forEach(row => { csv += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n'; });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob); const link = document.createElement('a');
+    link.href = url; link.download = `estudiantes_${getTodayKey()}.csv`; link.click();
+    URL.revokeObjectURL(url); showToast('Archivo CSV descargado', 'success');
+}
+
+// ============================================
+// MODALES
+// ============================================
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
+});
+
+// ============================================
+// INICIALIZACION
+// ============================================
+function init() {
+    loadTheme();
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+            if (window.innerWidth < 1024) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('active'); }
+        }
+    });
+}
+init();
+</script>
+</body>
+</html>
