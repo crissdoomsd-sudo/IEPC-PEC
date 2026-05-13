@@ -13,13 +13,12 @@ import {
     onValue, 
     push, 
     update, 
-    remove,
-    query,
-    orderByChild,
-    get
+    remove
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Firebase Configuration
+// ============================================
+// CONFIGURACIÓN FIREBASE
+// ============================================
 const firebaseConfig = {
     apiKey: 'AIzaSyAhsn87Ymkv7MrOD-5aQiDCCzFCs-V8oZI',
     authDomain: 'iepc-pec.firebaseapp.com',
@@ -36,43 +35,157 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Global State
+// ============================================
+// ESTADO GLOBAL
+// ============================================
 let currentUser = null;
 let studentsData = [];
 let teachersData = [];
-let attendanceData = {};
 let todayAttendance = {};
 let charts = {};
+let currentSection = 'dashboard';
 
-// Initialize App
+// ============================================
+// INICIALIZACIÓN
+// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    initDateTime();
+    console.log('🚀 App iniciada');
+    
+    initDateTime();           // ← HORA EN TIEMPO REAL
     initAuth();
     initListeners();
     initForms();
+    initNavigation();         // ← NAVEGACIÓN CORREGIDA
     generateHeatmap();
     
-    // Load initial data
-    loadStudents();
-    loadTeachers();
-    loadTodayAttendance();
-    loadLicenses();
+    // Mostrar sección inicial
+    showSection('dashboard');
 });
 
-// Date & Time
+// ============================================
+// HORA EN TIEMPO REAL (cada segundo)
+// ============================================
 function initDateTime() {
     const updateDateTime = () => {
         const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('currentDate').textContent = now.toLocaleDateString('es-ES', options);
-        document.getElementById('currentTime').textContent = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('listaDate').textContent = `Fecha: ${now.toLocaleDateString('es-ES')}`;
+        
+        // Fecha larga
+        const dateOptions = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        const dateEl = document.getElementById('currentDate');
+        if (dateEl) dateEl.textContent = now.toLocaleDateString('es-ES', dateOptions);
+        
+        // Hora con segundos (TIEMPO REAL)
+        const timeEl = document.getElementById('currentTime');
+        if (timeEl) {
+            timeEl.textContent = now.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false 
+            });
+        }
+        
+        // Fecha en toma de lista
+        const listaDateEl = document.getElementById('listaDate');
+        if (listaDateEl) {
+            listaDateEl.textContent = `Fecha: ${now.toLocaleDateString('es-ES')}`;
+        }
     };
+    
     updateDateTime();
-    setInterval(updateDateTime, 60000);
+    setInterval(updateDateTime, 1000); // ← Actualiza cada SEGUNDO
 }
 
-// Auth State
+// ============================================
+// NAVEGACIÓN CORREGIDA
+// ============================================
+function initNavigation() {
+    // Botones del sidebar
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = btn.dataset.section;
+            if (section) {
+                console.log('Navegando a:', section);
+                showSection(section);
+            }
+        });
+    });
+    
+    // Botón hamburguesa
+    const hamburgerBtn = document.querySelector('header button[onclick="toggleSidebar()"]');
+    if (hamburgerBtn) {
+        hamburgerBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleSidebar();
+        });
+    }
+}
+
+function showSection(sectionId) {
+    console.log('Mostrando sección:', sectionId);
+    currentSection = sectionId;
+    
+    // Ocultar TODAS las secciones
+    document.querySelectorAll('.section-content').forEach(section => {
+        section.classList.add('hidden');
+    });
+    
+    // Mostrar sección objetivo
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.remove('hidden');
+        targetSection.classList.add('active-section');
+    } else {
+        console.error('Sección no encontrada:', sectionId);
+        return;
+    }
+    
+    // Actualizar botones de navegación
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.section === sectionId) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Cerrar sidebar en móvil
+    if (window.innerWidth < 1024) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.add('-translate-x-full');
+    }
+    
+    // Refrescar datos específicos
+    if (sectionId === 'lista') {
+        loadAttendanceTable();
+    } else if (sectionId === 'bitacora') {
+        loadBitacora();
+    } else if (sectionId === 'maestros') {
+        renderTeachers();
+    } else if (sectionId === 'estudiantes') {
+        filterStudents();
+    } else if (sectionId === 'dashboard') {
+        updateDashboard();
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('-translate-x-full');
+        console.log('Sidebar toggled');
+    }
+}
+
+// ============================================
+// AUTENTICACIÓN
+// ============================================
 function initAuth() {
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
@@ -84,310 +197,363 @@ function updateAuthUI() {
     const authBtn = document.getElementById('authBtn');
     const userInfo = document.getElementById('userInfo');
     
+    if (!authBtn) return;
+    
     if (currentUser) {
         authBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> <span>Cerrar Sesión</span>';
         authBtn.onclick = logout;
         authBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         authBtn.classList.add('bg-red-600', 'hover:bg-red-700');
         
-        userInfo.classList.remove('hidden');
-        document.getElementById('userName').textContent = currentUser.displayName || 'Usuario';
-        document.getElementById('userEmail').textContent = currentUser.email;
-        document.getElementById('userAvatar').textContent = (currentUser.displayName || 'U')[0].toUpperCase();
+        if (userInfo) userInfo.classList.remove('hidden');
+        const userNameEl = document.getElementById('userName');
+        const userEmailEl = document.getElementById('userEmail');
+        const userAvatarEl = document.getElementById('userAvatar');
+        
+        if (userNameEl) userNameEl.textContent = currentUser.displayName || 'Usuario';
+        if (userEmailEl) userEmailEl.textContent = currentUser.email;
+        if (userAvatarEl) userAvatarEl.textContent = (currentUser.displayName || 'U')[0].toUpperCase();
     } else {
         authBtn.innerHTML = '<i class="fas fa-lock"></i> <span>Iniciar Sesión</span>';
         authBtn.onclick = toggleLogin;
         authBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
         authBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
         
-        userInfo.classList.add('hidden');
+        if (userInfo) userInfo.classList.add('hidden');
     }
 }
 
 function toggleLogin() {
-    document.getElementById('loginModal').classList.remove('hidden');
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeLogin() {
-    document.getElementById('loginModal').classList.add('hidden');
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.add('hidden');
 }
-
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-        closeLogin();
-        showToast('Sesión iniciada correctamente');
-    } catch (error) {
-        showToast('Error: ' + error.message, 'error');
-    }
-});
 
 function logout() {
     signOut(auth).then(() => {
         showToast('Sesión cerrada');
+    }).catch(err => {
+        showToast('Error al cerrar sesión: ' + err.message, 'error');
     });
 }
 
-// Navigation
-function showSection(sectionId) {
-    // Hide all sections
-    document.querySelectorAll('.section-content').forEach(section => {
-        section.classList.add('hidden');
-    });
-    
-    // Show target section
-    document.getElementById(sectionId).classList.remove('hidden');
-    
-    // Update nav buttons
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.section === sectionId) {
-            btn.classList.add('active');
-        }
-    });
-    
-    // Close sidebar on mobile
-    if (window.innerWidth < 1024) {
-        document.getElementById('sidebar').classList.add('-translate-x-full');
+// Login form handler
+document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail')?.value;
+            const password = document.getElementById('loginPassword')?.value;
+            
+            if (!email || !password) {
+                showToast('Complete todos los campos', 'error');
+                return;
+            }
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                closeLogin();
+                showToast('Sesión iniciada correctamente');
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        });
     }
-    
-    // Refresh data for specific sections
-    if (sectionId === 'lista') {
-        loadAttendanceTable();
-    } else if (sectionId === 'bitacora') {
-        loadBitacora();
-    }
-}
+});
 
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('-translate-x-full');
-}
-
-// Firebase Listeners
+// ============================================
+// LISTENERS FIREBASE (Tiempo Real)
+// ============================================
 function initListeners() {
-    // Students listener
+    // Estudiantes
     const studentsRef = ref(db, 'students');
     onValue(studentsRef, (snapshot) => {
         const data = snapshot.val();
         studentsData = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
-        updateDashboard();
-        filterStudents();
-        loadAttendanceTable();
+        console.log('📊 Estudiantes cargados:', studentsData.length);
+        
+        if (currentSection === 'dashboard') updateDashboard();
+        if (currentSection === 'estudiantes') filterStudents();
+        if (currentSection === 'lista') loadAttendanceTable();
     });
     
-    // Teachers listener
+    // Maestros
     const teachersRef = ref(db, 'teachers');
     onValue(teachersRef, (snapshot) => {
         const data = snapshot.val();
         teachersData = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
-        renderTeachers();
+        console.log('👨‍🏫 Maestros cargados:', teachersData.length);
+        
+        if (currentSection === 'maestros') renderTeachers();
+        if (currentSection === 'bitacora') loadBitacora();
     });
     
-    // Today's attendance listener
+    // Asistencia de hoy
     const today = new Date().toISOString().split('T')[0];
     const attendanceRef = ref(db, `attendance/${today}`);
     onValue(attendanceRef, (snapshot) => {
         todayAttendance = snapshot.val() || {};
-        updateDashboard();
-        filterStudents();
+        console.log('✅ Asistencia actualizada');
+        
+        if (currentSection === 'dashboard') updateDashboard();
+        if (currentSection === 'estudiantes') filterStudents();
+        if (currentSection === 'lista') loadAttendanceTable();
     });
 }
 
-// Dashboard Functions
+// ============================================
+// DASHBOARD
+// ============================================
 function updateDashboard() {
     const total = studentsData.length;
-    const today = new Date().toISOString().split('T')[0];
-    const attendance = todayAttendance || {};
-    
     let asistencias = 0, ausentes = 0, atrasos = 0, licencias = 0;
     
     studentsData.forEach(student => {
-        const status = attendance[student.id]?.status || 'pendiente';
+        const status = todayAttendance[student.id]?.status || 'pendiente';
         if (status === 'asistio') asistencias++;
         else if (status === 'ausente') ausentes++;
         else if (status === 'atraso') atrasos++;
         else if (status === 'licencia') licencias++;
     });
     
-    // Update counters with animation
+    // Animar contadores
     animateCounter('totalStudents', total);
     animateCounter('todayAttendance', asistencias);
     animateCounter('todayAbsents', ausentes);
     animateCounter('todayLates', atrasos);
     
-    // Update percentages
+    // Porcentajes
     const totalChecked = asistencias + ausentes + atrasos + licencias;
-    document.getElementById('attendancePercent').textContent = total > 0 ? Math.round((asistencias / total) * 100) + '%' : '0%';
-    document.getElementById('absentPercent').textContent = total > 0 ? Math.round((ausentes / total) * 100) + '%' : '0%';
-    document.getElementById('latePercent').textContent = total > 0 ? Math.round((atrasos / total) * 100) + '%' : '0%';
-    document.getElementById('studentsTrend').textContent = '+0%'; // Would need historical data
+    const attPercentEl = document.getElementById('attendancePercent');
+    const absPercentEl = document.getElementById('absentPercent');
+    const latePercentEl = document.getElementById('latePercent');
     
-    // Update charts
+    if (attPercentEl) attPercentEl.textContent = total > 0 ? Math.round((asistencias / total) * 100) + '%' : '0%';
+    if (absPercentEl) absPercentEl.textContent = total > 0 ? Math.round((ausentes / total) * 100) + '%' : '0%';
+    if (latePercentEl) latePercentEl.textContent = total > 0 ? Math.round((atrasos / total) * 100) + '%' : '0%';
+    
+    // Actualizar gráficos
     updateCharts(asistencias, ausentes, atrasos, licencias, total);
+    
+    // Licencias
+    loadLicensesList();
 }
 
 function animateCounter(id, target) {
     const element = document.getElementById(id);
-    const current = parseInt(element.textContent) || 0;
-    const increment = target > current ? 1 : -1;
+    if (!element) return;
     
-    if (current !== target) {
-        const timer = setInterval(() => {
-            const newValue = parseInt(element.textContent) + increment;
-            element.textContent = newValue;
-            if (newValue === target) clearInterval(timer);
-        }, 20);
-    }
+    const current = parseInt(element.textContent) || 0;
+    if (current === target) return;
+    
+    const increment = target > current ? 1 : -1;
+    const timer = setInterval(() => {
+        const newValue = parseInt(element.textContent) + increment;
+        element.textContent = newValue;
+        if (newValue === target) clearInterval(timer);
+    }, 15);
 }
 
 function updateCharts(asistencias, ausentes, atrasos, licencias, total) {
-    // Mini sparkline charts
     const sparklineOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
         scales: { x: { display: false }, y: { display: false } },
         elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } }
     };
     
-    // Generate dummy trend data (in real app, fetch historical)
-    const trendData = Array.from({length: 7}, () => Math.floor(Math.random() * total));
+    const trendData = Array.from({length: 7}, () => Math.floor(Math.random() * Math.max(total, 10)));
     
-    // Destroy existing charts
+    // Destruir gráficos existentes
     Object.values(charts).forEach(chart => chart?.destroy?.());
     
-    // Students Chart
-    const ctxStudents = document.getElementById('chartStudents').getContext('2d');
-    charts.students = new Chart(ctxStudents, {
-        type: 'line',
-        data: {
-            labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
-            datasets: [{
-                data: trendData,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: true
-            }]
-        },
-        options: sparklineOptions
-    });
+    // Chart: Total Estudiantes
+    const ctxStudents = document.getElementById('chartStudents')?.getContext('2d');
+    if (ctxStudents) {
+        charts.students = new Chart(ctxStudents, {
+            type: 'line',
+            data: {
+                labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+                datasets: [{
+                    data: trendData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true
+                }]
+            },
+            options: sparklineOptions
+        });
+    }
     
-    // Attendance Chart
-    const ctxAttendance = document.getElementById('chartAttendance').getContext('2d');
-    charts.attendance = new Chart(ctxAttendance, {
-        type: 'line',
-        data: {
-            labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
-            datasets: [{
-                data: trendData.map(v => Math.floor(v * 0.9)),
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                fill: true
-            }]
-        },
-        options: sparklineOptions
-    });
+    // Chart: Asistencias
+    const ctxAttendance = document.getElementById('chartAttendance')?.getContext('2d');
+    if (ctxAttendance) {
+        charts.attendance = new Chart(ctxAttendance, {
+            type: 'line',
+            data: {
+                labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+                datasets: [{
+                    data: trendData.map(v => Math.floor(v * 0.9)),
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    fill: true
+                }]
+            },
+            options: sparklineOptions
+        });
+    }
     
-    // Absents Chart
-    const ctxAbsents = document.getElementById('chartAbsents').getContext('2d');
-    charts.absents = new Chart(ctxAbsents, {
-        type: 'line',
-        data: {
-            labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
-            datasets: [{
-                data: trendData.map(v => Math.floor(v * 0.05)),
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                fill: true
-            }]
-        },
-        options: sparklineOptions
-    });
+    // Chart: Ausentes
+    const ctxAbsents = document.getElementById('chartAbsents')?.getContext('2d');
+    if (ctxAbsents) {
+        charts.absents = new Chart(ctxAbsents, {
+            type: 'line',
+            data: {
+                labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+                datasets: [{
+                    data: trendData.map(v => Math.floor(v * 0.05)),
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true
+                }]
+            },
+            options: sparklineOptions
+        });
+    }
     
-    // Lates Chart
-    const ctxLates = document.getElementById('chartLates').getContext('2d');
-    charts.lates = new Chart(ctxLates, {
-        type: 'line',
-        data: {
-            labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
-            datasets: [{
-                data: trendData.map(v => Math.floor(v * 0.03)),
-                borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                fill: true
-            }]
-        },
-        options: sparklineOptions
-    });
+    // Chart: Atrasos
+    const ctxLates = document.getElementById('chartLates')?.getContext('2d');
+    if (ctxLates) {
+        charts.lates = new Chart(ctxLates, {
+            type: 'line',
+            data: {
+                labels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+                datasets: [{
+                    data: trendData.map(v => Math.floor(v * 0.03)),
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    fill: true
+                }]
+            },
+            options: sparklineOptions
+        });
+    }
     
     // Pie Chart
-    const ctxPie = document.getElementById('pieChart').getContext('2d');
-    if (charts.pie) charts.pie.destroy();
-    charts.pie = new Chart(ctxPie, {
-        type: 'doughnut',
-        data: {
-            labels: ['Asistió', 'Ausente', 'Atraso', 'Licencia'],
-            datasets: [{
-                data: [asistencias, ausentes, atrasos, licencias],
-                backgroundColor: ['#22c55e', '#ef4444', '#f59e0b', '#6366f1'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' }
+    const ctxPie = document.getElementById('pieChart')?.getContext('2d');
+    if (ctxPie) {
+        if (charts.pie) charts.pie.destroy();
+        charts.pie = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['Asistió', 'Ausente', 'Atraso', 'Licencia'],
+                datasets: [{
+                    data: [asistencias, ausentes, atrasos, licencias],
+                    backgroundColor: ['#22c55e', '#ef4444', '#f59e0b', '#6366f1'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
             }
-        }
-    });
+        });
+    }
 }
 
-// Heatmap Generation
+// ============================================
+// MAPA DE CALOR
+// ============================================
 function generateHeatmap() {
     const heatmap = document.getElementById('heatmap');
-    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-    const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay();
+    if (!heatmap) return;
+    
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
     
     let html = '';
-    
-    // Day headers
     const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
     dayNames.forEach(day => {
         html += `<div class="text-center font-semibold text-gray-400 py-2">${day}</div>`;
     });
     
-    // Empty cells for offset
     for (let i = 0; i < firstDay; i++) {
         html += `<div class="heatmap-cell heatmap-empty"></div>`;
     }
     
-    // Day cells
     for (let day = 1; day <= daysInMonth; day++) {
-        const attendance = Math.random(); // Simulated - in real app, fetch from DB
+        const attendance = Math.random();
         let className = 'heatmap-empty';
         if (attendance > 0.8) className = 'heatmap-full';
         else if (attendance > 0.6) className = 'heatmap-high';
         else if (attendance > 0.3) className = 'heatmap-medium';
         else if (attendance > 0) className = 'heatmap-low';
         
-        const isToday = day === new Date().getDate();
+        const isToday = day === now.getDate();
         const borderClass = isToday ? 'ring-2 ring-blue-500 ring-offset-1' : '';
         
-        html += `<div class="heatmap-cell ${className} ${borderClass}" title="Día ${day}: ${Math.round(attendance * 100)}% asistencia">${day}</div>`;
+        html += `<div class="heatmap-cell ${className} ${borderClass}" title="Día ${day}">${day}</div>`;
     }
     
     heatmap.innerHTML = html;
 }
 
-// Teachers Management
+// ============================================
+// LICENCIAS
+// ============================================
+function loadLicensesList() {
+    const container = document.getElementById('licensesList');
+    const countEl = document.getElementById('licensesCount');
+    if (!container || !countEl) return;
+    
+    const licenses = Object.entries(todayAttendance)
+        .filter(([_, val]) => val.status === 'licencia')
+        .map(([id, val]) => {
+            const student = studentsData.find(s => s.id === id);
+            return { ...val, student, id };
+        });
+    
+    countEl.textContent = licenses.length;
+    
+    if (licenses.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No hay licencias registradas hoy</p>';
+        return;
+    }
+    
+    container.innerHTML = licenses.map(license => `
+        <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100 hover:translate-x-1 transition">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-purple-200 rounded-full flex items-center justify-center text-purple-700 font-bold">
+                    ${license.student ? license.student.name[0] : 'L'}
+                </div>
+                <div>
+                    <p class="font-medium text-gray-800">
+                        ${license.student ? `${license.student.name} ${license.student.lastName}` : 'Estudiante'}
+                    </p>
+                    <p class="text-xs text-gray-500">${license.observations || 'Sin observaciones'}</p>
+                </div>
+            </div>
+            <span class="text-xs text-purple-600 font-medium bg-purple-100 px-2 py-1 rounded">
+                ${license.timestamp ? new Date(license.timestamp).toLocaleTimeString() : '--:--'}
+            </span>
+        </div>
+    `).join('');
+}
+
+// ============================================
+// MAESTROS
+// ============================================
 function renderTeachers() {
     const grid = document.getElementById('teachersGrid');
+    if (!grid) return;
     
     if (teachersData.length === 0) {
         grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400">No hay maestros registrados</div>';
@@ -395,10 +561,10 @@ function renderTeachers() {
     }
     
     grid.innerHTML = teachersData.map(teacher => `
-        <div class="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition cursor-pointer" onclick="showTeacherProfile('${teacher.id}')">
+        <div class="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition cursor-pointer" onclick="window.showTeacherProfile('${teacher.id}')">
             <div class="flex items-start justify-between mb-4">
                 <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
-                    ${teacher.name[0]}${teacher.lastName[0]}
+                    ${teacher.name?.[0] || 'M'}${teacher.lastName?.[0] || 'M'}
                 </div>
                 <span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
                     ${teacher.specialty || 'General'}
@@ -418,11 +584,14 @@ function showTeacherProfile(teacherId) {
     const teacher = teachersData.find(t => t.id === teacherId);
     if (!teacher) return;
     
+    const modal = document.getElementById('teacherModal');
     const content = document.getElementById('teacherModalContent');
+    if (!modal || !content) return;
+    
     content.innerHTML = `
         <div class="flex items-center gap-4 mb-6">
             <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-3xl font-bold text-blue-600">
-                ${teacher.name[0]}${teacher.lastName[0]}
+                ${teacher.name?.[0] || 'M'}${teacher.lastName?.[0] || 'M'}
             </div>
             <div>
                 <h4 class="text-xl font-bold">${teacher.name} ${teacher.lastName}</h4>
@@ -444,46 +613,52 @@ function showTeacherProfile(teacherId) {
             </div>
         </div>
         <div class="mt-6 flex gap-2">
-            <button onclick="closeTeacherModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg transition">Cerrar</button>
-            <button onclick="deleteTeacher('${teacherId}')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg transition">Eliminar</button>
+            <button onclick="window.closeTeacherModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg transition">Cerrar</button>
+            <button onclick="window.deleteTeacher('${teacherId}')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg transition">Eliminar</button>
         </div>
     `;
     
-    document.getElementById('teacherModal').classList.remove('hidden');
+    modal.classList.remove('hidden');
 }
 
 function closeTeacherModal() {
-    document.getElementById('teacherModal').classList.add('hidden');
+    const modal = document.getElementById('teacherModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function openTeacherForm() {
     showSection('bitacora');
-    document.getElementById('teacherName').focus();
+    setTimeout(() => {
+        document.getElementById('teacherName')?.focus();
+    }, 100);
 }
 
 function deleteTeacher(teacherId) {
     if (!confirm('¿Está seguro de eliminar este maestro?')) return;
-    remove(ref(db, `teachers/${teacherId}`)).then(() => {
-        showToast('Maestro eliminado');
-        closeTeacherModal();
-    });
+    remove(ref(db, `teachers/${teacherId}`))
+        .then(() => {
+            showToast('Maestro eliminado');
+            closeTeacherModal();
+        })
+        .catch(err => showToast('Error: ' + err.message, 'error'));
 }
 
-// Students Management
-function loadStudents() {
-    // Handled by listener
-}
-
+// ============================================
+// ESTUDIANTES
+// ============================================
 function filterStudents() {
-    const search = document.getElementById('studentSearch').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
-    const gradeFilter = document.getElementById('gradeFilter').value;
+    const searchEl = document.getElementById('studentSearch');
+    const statusEl = document.getElementById('statusFilter');
+    const gradeEl = document.getElementById('gradeFilter');
+    
+    const search = searchEl ? searchEl.value.toLowerCase() : '';
+    const statusFilter = statusEl ? statusEl.value : '';
+    const gradeFilter = gradeEl ? gradeEl.value : '';
     
     let filtered = studentsData.filter(student => {
-        const fullName = `${student.name} ${student.lastName}`.toLowerCase();
+        const fullName = `${student.name || ''} ${student.lastName || ''}`.toLowerCase();
         const matchSearch = fullName.includes(search) || (student.ci && student.ci.includes(search));
         
-        const today = new Date().toISOString().split('T')[0];
         const status = todayAttendance[student.id]?.status || 'pendiente';
         const matchStatus = !statusFilter || status === statusFilter;
         
@@ -497,7 +672,10 @@ function filterStudents() {
 
 function renderStudentsTable(students) {
     const tbody = document.getElementById('studentsTableBody');
-    document.getElementById('studentsCount').textContent = `${students.length} estudiantes`;
+    const countEl = document.getElementById('studentsCount');
+    
+    if (!tbody) return;
+    if (countEl) countEl.textContent = `${students.length} estudiantes`;
     
     if (students.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">No se encontraron estudiantes</td></tr>';
@@ -505,24 +683,32 @@ function renderStudentsTable(students) {
     }
     
     tbody.innerHTML = students.map((student, index) => {
-        const today = new Date().toISOString().split('T')[0];
         const attendance = todayAttendance[student.id] || {};
         const status = attendance.status || 'pendiente';
-        const statusClass = {
+        
+        const statusClasses = {
             'asistio': 'status-asistio',
             'ausente': 'status-ausente',
             'atraso': 'status-atraso',
             'licencia': 'status-licencia',
             'pendiente': 'bg-gray-100 text-gray-600'
-        }[status] || 'bg-gray-100 text-gray-600';
+        };
         
-        const statusText = {
+        const statusTexts = {
             'asistio': 'Asistió',
             'ausente': 'Ausente',
             'atraso': 'Atraso',
             'licencia': 'Licencia',
             'pendiente': 'Pendiente'
-        }[status] || 'Pendiente';
+        };
+        
+        const statusIcons = {
+            'asistio': 'check',
+            'ausente': 'times',
+            'atraso': 'clock',
+            'licencia': 'file-medical',
+            'pendiente': 'circle'
+        };
         
         return `
             <tr class="hover:bg-gray-50 transition">
@@ -530,7 +716,7 @@ function renderStudentsTable(students) {
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">
-                            ${student.name[0]}${student.lastName[0]}
+                            ${student.name?.[0] || 'E'}${student.lastName?.[0] || 'E'}
                         </div>
                         <div>
                             <p class="font-medium text-gray-900">${student.name} ${student.lastName}</p>
@@ -541,17 +727,17 @@ function renderStudentsTable(students) {
                 <td class="px-6 py-4 text-sm text-gray-600">${student.tutor || 'N/A'}</td>
                 <td class="px-6 py-4 text-sm text-gray-600">${student.phone || 'N/A'}</td>
                 <td class="px-6 py-4">
-                    <span class="status-badge ${statusClass}">
-                        <i class="fas fa-${status === 'asistio' ? 'check' : status === 'ausente' ? 'times' : status === 'atraso' ? 'clock' : 'circle'} text-xs"></i>
-                        ${statusText}
+                    <span class="status-badge ${statusClasses[status] || statusClasses.pendiente}">
+                        <i class="fas fa-${statusIcons[status] || 'circle'} text-xs"></i>
+                        ${statusTexts[status] || 'Pendiente'}
                     </span>
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">${attendance.observations || '-'}</td>
                 <td class="px-6 py-4">
-                    <button onclick="editStudent('${student.id}')" class="text-blue-600 hover:text-blue-800 mr-2">
+                    <button onclick="window.editStudent('${student.id}')" class="text-blue-600 hover:text-blue-800 mr-2 p-1">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button onclick="deleteStudent('${student.id}')" class="text-red-600 hover:text-red-800">
+                    <button onclick="window.deleteStudent('${student.id}')" class="text-red-600 hover:text-red-800 p-1">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -566,8 +752,8 @@ function exportStudentsCSV() {
         const att = todayAttendance[s.id] || {};
         return [
             i + 1,
-            s.name,
-            s.lastName,
+            s.name || '',
+            s.lastName || '',
             s.ci || '',
             s.phone || '',
             s.tutor || '',
@@ -589,13 +775,21 @@ function editStudent(studentId) {
     const student = studentsData.find(s => s.id === studentId);
     if (!student) return;
     
-    document.getElementById('studentName').value = student.name;
-    document.getElementById('studentLastName').value = student.lastName;
-    document.getElementById('studentCI').value = student.ci || '';
-    document.getElementById('studentPhone').value = student.phone || '';
-    document.getElementById('studentTutor').value = student.tutor || '';
-    document.getElementById('studentAddress').value = student.address || '';
-    document.getElementById('studentGrade').value = student.grade || '';
+    const nameEl = document.getElementById('studentName');
+    const lastNameEl = document.getElementById('studentLastName');
+    const ciEl = document.getElementById('studentCI');
+    const phoneEl = document.getElementById('studentPhone');
+    const tutorEl = document.getElementById('studentTutor');
+    const addressEl = document.getElementById('studentAddress');
+    const gradeEl = document.getElementById('studentGrade');
+    
+    if (nameEl) nameEl.value = student.name || '';
+    if (lastNameEl) lastNameEl.value = student.lastName || '';
+    if (ciEl) ciEl.value = student.ci || '';
+    if (phoneEl) phoneEl.value = student.phone || '';
+    if (tutorEl) tutorEl.value = student.tutor || '';
+    if (addressEl) addressEl.value = student.address || '';
+    if (gradeEl) gradeEl.value = student.grade || '';
     
     showSection('bitacora');
     showToast('Modo edición activado. Actualice los datos y guarde.');
@@ -603,13 +797,17 @@ function editStudent(studentId) {
 
 function deleteStudent(studentId) {
     if (!confirm('¿Eliminar este estudiante?')) return;
-    remove(ref(db, `students/${studentId}`)).then(() => showToast('Estudiante eliminado'));
+    remove(ref(db, `students/${studentId}`))
+        .then(() => showToast('Estudiante eliminado'))
+        .catch(err => showToast('Error: ' + err.message, 'error'));
 }
 
-// Attendance (Toma de Lista)
+// ============================================
+// TOMA DE LISTA
+// ============================================
 function loadAttendanceTable() {
     const tbody = document.getElementById('attendanceTableBody');
-    const today = new Date().toISOString().split('T')[0];
+    if (!tbody) return;
     
     if (studentsData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">No hay estudiantes registrados</td></tr>';
@@ -626,7 +824,7 @@ function loadAttendanceTable() {
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">
-                            ${student.name[0]}${student.lastName[0]}
+                            ${student.name?.[0] || 'E'}${student.lastName?.[0] || 'E'}
                         </div>
                         <div>
                             <p class="font-medium text-gray-900">${student.name} ${student.lastName}</p>
@@ -636,31 +834,34 @@ function loadAttendanceTable() {
                 </td>
                 <td class="px-6 py-4 text-center">
                     <input type="radio" name="att_${student.id}" value="asistio" class="attendance-radio" 
-                        ${status === 'asistio' ? 'checked' : ''} onchange="updateAttendance('${student.id}', 'asistio')">
+                        ${status === 'asistio' ? 'checked' : ''} 
+                        onchange="window.updateAttendance('${student.id}', 'asistio')">
                 </td>
                 <td class="px-6 py-4 text-center">
                     <input type="radio" name="att_${student.id}" value="ausente" class="attendance-radio" 
-                        ${status === 'ausente' ? 'checked' : ''} onchange="updateAttendance('${student.id}', 'ausente')">
+                        ${status === 'ausente' ? 'checked' : ''} 
+                        onchange="window.updateAttendance('${student.id}', 'ausente')">
                 </td>
                 <td class="px-6 py-4 text-center">
                     <input type="radio" name="att_${student.id}" value="atraso" class="attendance-radio" 
-                        ${status === 'atraso' ? 'checked' : ''} onchange="updateAttendance('${student.id}', 'atraso')">
+                        ${status === 'atraso' ? 'checked' : ''} 
+                        onchange="window.updateAttendance('${student.id}', 'atraso')">
                 </td>
                 <td class="px-6 py-4">
                     <select class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
-                        onchange="updateIncidents('${student.id}', this.value)">
+                        onchange="window.updateIncidents('${student.id}', this.value)">
                         <option value="">Sin incidencias</option>
-                        <option value="indisciplina" ${att.incidents?.includes('indisciplina') ? 'selected' : ''}>Indisciplina</option>
-                        <option value="tareas" ${att.incidents?.includes('tareas') ? 'selected' : ''}>No trajo tareas</option>
-                        <option value="uniforme" ${att.incidents?.includes('uniforme') ? 'selected' : ''}>Sin uniforme</option>
-                        <option value="material" ${att.incidents?.includes('material') ? 'selected' : ''}>Sin material</option>
-                        <option value="pelea" ${att.incidents?.includes('pelea') ? 'selected' : ''}>Pelea</option>
+                        <option value="indisciplina" ${att.incidents === 'indisciplina' ? 'selected' : ''}>Indisciplina</option>
+                        <option value="tareas" ${att.incidents === 'tareas' ? 'selected' : ''}>No trajo tareas</option>
+                        <option value="uniforme" ${att.incidents === 'uniforme' ? 'selected' : ''}>Sin uniforme</option>
+                        <option value="material" ${att.incidents === 'material' ? 'selected' : ''}>Sin material</option>
+                        <option value="pelea" ${att.incidents === 'pelea' ? 'selected' : ''}>Pelea</option>
                     </select>
                 </td>
                 <td class="px-6 py-4">
                     <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
                         placeholder="Observaciones..." value="${att.observations || ''}"
-                        onchange="updateObservations('${student.id}', this.value)">
+                        onchange="window.updateObservations('${student.id}', this.value)">
                 </td>
             </tr>
         `;
@@ -669,100 +870,103 @@ function loadAttendanceTable() {
 
 function updateAttendance(studentId, status) {
     const today = new Date().toISOString().split('T')[0];
-    const ref_path = `attendance/${today}/${studentId}`;
+    const attendanceRef = ref(db, `attendance/${today}/${studentId}`);
     
-    set(ref(db, ref_path), {
+    set(attendanceRef, {
         status: status,
         timestamp: Date.now(),
         updatedBy: currentUser?.email || 'anonymous'
+    }).then(() => {
+        showToast(`Estado actualizado: ${status}`);
+    }).catch(err => {
+        showToast('Error: ' + err.message, 'error');
     });
-    
-    showToast(`Estado actualizado: ${status}`);
 }
 
 function updateIncidents(studentId, incident) {
     const today = new Date().toISOString().split('T')[0];
-    const ref_path = `attendance/${today}/${studentId}`;
-    
-    update(ref(db, ref_path), {
+    update(ref(db, `attendance/${today}/${studentId}`), {
         incidents: incident,
         updatedAt: Date.now()
     });
 }
 
 function updateObservations(studentId, observations) {
-    const today = new Date().toISOString().split('T')[0];
-    const ref_path = `attendance/${today}/${studentId}`;
-    
-    update(ref(db, ref_path), {
+    const today = new Date().toISOString().split('T')[0'];
+    update(ref(db, `attendance/${today}/${studentId}`), {
         observations: observations,
         updatedAt: Date.now()
     });
 }
 
 function saveAttendance() {
-    showToast('Asistencia guardada correctamente (sincronización en tiempo real activa)');
+    showToast('✅ Asistencia sincronizada en tiempo real con Firebase');
 }
 
-function loadTodayAttendance() {
-    // Handled by listener
-}
-
-// Forms
+// ============================================
+// BITÁCORA Y FORMULARIOS
+// ============================================
 function initForms() {
     // Teacher Form
-    document.getElementById('teacherForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const teacher = {
-            name: document.getElementById('teacherName').value,
-            lastName: document.getElementById('teacherLastName').value,
-            phone: document.getElementById('teacherPhone').value,
-            specialty: document.getElementById('teacherSpecialty').value,
-            createdAt: Date.now(),
-            createdBy: currentUser?.email || 'anonymous'
-        };
-        
-        try {
-            await push(ref(db, 'teachers'), teacher);
-            e.target.reset();
-            showToast('Maestro registrado exitosamente');
-            loadBitacora();
-        } catch (error) {
-            showToast('Error: ' + error.message, 'error');
-        }
-    });
+    const teacherForm = document.getElementById('teacherForm');
+    if (teacherForm) {
+        teacherForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const teacher = {
+                name: document.getElementById('teacherName')?.value || '',
+                lastName: document.getElementById('teacherLastName')?.value || '',
+                phone: document.getElementById('teacherPhone')?.value || '',
+                specialty: document.getElementById('teacherSpecialty')?.value || '',
+                createdAt: Date.now(),
+                createdBy: currentUser?.email || 'anonymous'
+            };
+            
+            try {
+                await push(ref(db, 'teachers'), teacher);
+                teacherForm.reset();
+                showToast('Maestro registrado exitosamente');
+                loadBitacora();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        });
+    }
     
     // Student Form
-    document.getElementById('studentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const student = {
-            name: document.getElementById('studentName').value,
-            lastName: document.getElementById('studentLastName').value,
-            ci: document.getElementById('studentCI').value,
-            phone: document.getElementById('studentPhone').value,
-            tutor: document.getElementById('studentTutor').value,
-            address: document.getElementById('studentAddress').value,
-            grade: document.getElementById('studentGrade').value,
-            createdAt: Date.now(),
-            createdBy: currentUser?.email || 'anonymous'
-        };
-        
-        try {
-            await push(ref(db, 'students'), student);
-            e.target.reset();
-            showToast('Estudiante registrado exitosamente');
-            loadBitacora();
-        } catch (error) {
-            showToast('Error: ' + error.message, 'error');
-        }
-    });
+    const studentForm = document.getElementById('studentForm');
+    if (studentForm) {
+        studentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const student = {
+                name: document.getElementById('studentName')?.value || '',
+                lastName: document.getElementById('studentLastName')?.value || '',
+                ci: document.getElementById('studentCI')?.value || '',
+                phone: document.getElementById('studentPhone')?.value || '',
+                tutor: document.getElementById('studentTutor')?.value || '',
+                address: document.getElementById('studentAddress')?.value || '',
+                grade: document.getElementById('studentGrade')?.value || '',
+                createdAt: Date.now(),
+                createdBy: currentUser?.email || 'anonymous'
+            };
+            
+            try {
+                await push(ref(db, 'students'), student);
+                studentForm.reset();
+                showToast('Estudiante registrado exitosamente');
+                loadBitacora();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        });
+    }
 }
 
-// Bitácora
 function loadBitacora() {
     const tbody = document.getElementById('bitacoraTableBody');
+    if (!tbody) return;
+    
     const allRecords = [
         ...teachersData.map(t => ({ ...t, type: 'Maestro' })),
         ...studentsData.map(s => ({ ...s, type: 'Estudiante' }))
@@ -793,20 +997,8 @@ function loadBitacora() {
 function exportBitacoraCSV() {
     const headers = ['Tipo', 'Nombre', 'Apellido', 'CI/Teléfono', 'Detalle', 'Fecha'];
     const rows = [
-        ...teachersData.map(t => ['Maestro', t.name, t.lastName, t.phone, t.specialty, new Date(t.createdAt).toLocaleDateString()]),
-        ...studentsData.map(s => ['Estudiante', s.name, s.lastName, s.ci, s.grade, new Date(s.createdAt).toLocaleDate Continúo con la segunda parte del archivo `app.js` y los archivos restantes:
-
-## Continuación de `app.js`
-
-```javascript
-// Continuación del archivo app.js
-
-// Bitácora (continuación)
-function exportBitacoraCSV() {
-    const headers = ['Tipo', 'Nombre', 'Apellido', 'CI/Teléfono', 'Detalle', 'Fecha'];
-    const rows = [
-        ...teachersData.map(t => ['Maestro', t.name, t.lastName, t.phone || '', t.specialty || '', new Date(t.createdAt || Date.now()).toLocaleDateString()]),
-        ...studentsData.map(s => ['Estudiante', s.name, s.lastName, s.ci || s.phone || '', s.grade || '', new Date(s.createdAt || Date.now()).toLocaleDateString()])
+        ...teachersData.map(t => ['Maestro', t.name || '', t.lastName || '', t.phone || '', t.specialty || '', new Date(t.createdAt || Date.now()).toLocaleDateString()]),
+        ...studentsData.map(s => ['Estudiante', s.name || '', s.lastName || '', s.ci || s.phone || '', s.grade || '', new Date(s.createdAt || Date.now()).toLocaleDateString()])
     ];
     
     downloadCSV([headers, ...rows], 'bitacora_registros.csv');
@@ -816,70 +1008,35 @@ function printBitacora() {
     window.print();
 }
 
-// Licenses
-function loadLicenses() {
-    const today = new Date().toISOString().split('T')[0];
-    const licensesRef = ref(db, `attendance/${today}`);
-    
-    onValue(licensesRef, (snapshot) => {
-        const data = snapshot.val() || {};
-        const licenses = Object.entries(data)
-            .filter(([_, val]) => val.status === 'licencia')
-            .map(([id, val]) => {
-                const student = studentsData.find(s => s.id === id);
-                return { ...val, student };
-            });
-        
-        const container = document.getElementById('licensesList');
-        document.getElementById('licensesCount').textContent = licenses.length;
-        
-        if (licenses.length === 0) {
-            container.innerHTML = '<p class="text-gray-400 text-center py-8">No hay licencias registradas hoy</p>';
-            return;
-        }
-        
-        container.innerHTML = licenses.map(license => `
-            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-purple-200 rounded-full flex items-center justify-center text-purple-700 font-bold">
-                        ${license.student ? license.student.name[0] : 'L'}
-                    </div>
-                    <div>
-                        <p class="font-medium text-gray-800">
-                            ${license.student ? `${license.student.name} ${license.student.lastName}` : 'Estudiante'}
-                        </p>
-                        <p class="text-xs text-gray-500">${license.observations || 'Sin observaciones'}</p>
-                    </div>
-                </div>
-                <span class="text-xs text-purple-600 font-medium bg-purple-100 px-2 py-1 rounded">
-                    ${new Date(license.timestamp).toLocaleTimeString()}
-                </span>
-            </div>
-        `).join('');
-    });
-}
-
-// Utilities
+// ============================================
+// UTILIDADES
+// ============================================
 function downloadCSV(data, filename) {
     const csv = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = filename;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 }
 
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
-    const icon = toast.querySelector('i');
+    const icon = toast?.querySelector('i');
+    
+    if (!toast || !toastMessage) return;
     
     toastMessage.textContent = message;
     
-    if (type === 'error') {
-        icon.className = 'fas fa-exclamation-circle text-red-400';
-    } else {
-        icon.className = 'fas fa-check-circle text-green-400';
+    if (icon) {
+        if (type === 'error') {
+            icon.className = 'fas fa-exclamation-circle text-red-400';
+        } else {
+            icon.className = 'fas fa-check-circle text-green-400';
+        }
     }
     
     toast.classList.add('toast-show');
@@ -889,7 +1046,9 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Expose functions to window for HTML onclick handlers
+// ============================================
+// EXPONER FUNCIONES GLOBALMENTE (CRÍTICO PARA HTML onclick)
+// ============================================
 window.showSection = showSection;
 window.toggleSidebar = toggleSidebar;
 window.toggleLogin = toggleLogin;
@@ -911,3 +1070,5 @@ window.updateObservations = updateObservations;
 window.saveAttendance = saveAttendance;
 window.exportBitacoraCSV = exportBitacoraCSV;
 window.printBitacora = printBitacora;
+
+console.log('✅ Todas las funciones expuestas globalmente');
