@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IEPC-PEC - Sistema de Gestión Escolar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 font-sans text-gray-800">
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all scale-100">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-school text-white text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">Acceso al Sistema</h2>
+                <p class="text-gray-500 text-sm mt-1">IEPC-PEC Gestión Escolar</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                    <input type="email" id="loginEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" placeholder="profesor@iepc-pec.edu">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                    <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300 flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> Ingresar al Sistema
+                </button>
+            </form>
+            <div class="mt-4 text-center">
+                <button onclick="closeLogin()" class="text-gray-500 hover:text-gray-700 text-sm">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white transform -translate-x-full lg:translate-x-0 transition-transform duration-300 z-40">
+        <div class="p-6 border-b border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">IEPC-PEC</h1>
+                    <p class="text-xs text-slate-400">Sistema Escolar</p>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="p-4 space-y-2">
+            <button onclick="showSection('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-left active" data-section="dashboard">
+                <i class="fas fa-chart-line w-5"></i>
+                <span>Dashboard</span>
+            </button>
+            <button onclick="showSection('maestros')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-left" data-section="maestros">
+                <i class="fas fa-chalkboard-teacher w-5"></i>
+                <span>Maestros</span>
+            </button>
+            <button onclick="showSection('estudiantes')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-left" data-section="estudiantes">
+                <i class="fas fa-user-graduate w-5"></i>
+                <span>Estudiantes</span>
+            </button>
+            <button onclick="showSection('lista')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-left" data-section="lista">
+                <i class="fas fa-clipboard-check w-5"></i>
+                <span>Toma de Lista</span>
+            </button>
+            <button onclick="showSection('bitacora')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-left" data-section="bitacora">
+                <i class="fas fa-book w-5"></i>
+                <span>Bitácora</span>
+            </button>
+        </nav>
+
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700">
+            <div id="userInfo" class="flex items-center gap-3 mb-3 hidden">
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold" id="userAvatar">U</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate" id="userName">Usuario</p>
+                    <p class="text-xs text-slate-400 truncate" id="userEmail">email@example.com</p>
+                </div>
+            </div>
+            <button onclick="toggleLogin()" id="authBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-lock"></i> <span>Iniciar Sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lg:ml-64 min-h-screen transition-all duration-300">
+        <!-- Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
+            <button onclick="toggleSidebar()" class="lg:hidden text-gray-600 hover:text-gray-900">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center gap-4 ml-auto">
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm font-semibold text-gray-800" id="currentDate">Lunes, 12 de Mayo 2026</p>
+                    <p class="text-xs text-gray-500" id="currentTime">14:30</p>
+                </div>
+                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-bell text-gray-600"></i>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-6 max-w-7xl mx-auto">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section-content">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Panel Principal</h2>
+                    <p class="text-gray-500">Resumen del día de hoy</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Total Estudiantes</p>
+                                <h3 class="text-3xl font-bold text-gray-800" id="totalStudents">0</h3>
+                                <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                    <i class="fas fa-arrow-up"></i> <span id="studentsTrend">0%</span> vs ayer
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-blue-500 text-xl"></i>
+                            </div>
+                        </div>
+                        <canvas id="chartStudents" class="mt-4 h-16 w-full"></canvas>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Asistencias Hoy</p>
+                                <h3 class="text-3xl font-bold text-gray-800" id="todayAttendance">0</h3>
+                                <p class="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                    <i class="fas fa-check-circle"></i> <span id="attendancePercent">0%</span>
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-check text-green-500 text-xl"></i>
+                            </div>
+                        </div>
+                        <canvas id="chartAttendance" class="mt-4 h-16 w-full"></canvas>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Ausentes Hoy</p>
+                                <h3 class="text-3xl font-bold text-gray-800" id="todayAbsents">0</h3>
+                                <p class="text-xs text-red-600 mt-1 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle"></i> <span id="absentPercent">0%</span>
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-times text-red-500 text-xl"></i>
+                            </div>
+                        </div>
+                        <canvas id="chartAbsents" class="mt-4 h-16 w-full"></canvas>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Atrasos Hoy</p>
+                                <h3 class="text-3xl font-bold text-gray-800" id="todayLates">0</h3>
+                                <p class="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                                    <i class="fas fa-clock"></i> <span id="latePercent">0%</span>
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-yellow-50 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-hourglass-half text-yellow-500 text-xl"></i>
+                            </div>
+                        </div>
+                        <canvas id="chartLates" class="mt-4 h-16 w-full"></canvas>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-chart-pie text-blue-500"></i> Distribución Diaria
+                        </h3>
+                        <canvas id="pieChart" class="max-h-64"></canvas>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-fire text-orange-500"></i> Mapa de Calor - Asistencia Mensual
+                        </h3>
+                        <div id="heatmap" class="grid grid-cols-7 gap-1 text-xs">
+                            <!-- Generated by JS -->
+                        </div>
+                        <div class="flex items-center gap-2 mt-4 justify-end text-xs text-gray-500">
+                            <span>Menos</span>
+                            <div class="w-3 h-3 bg-red-200 rounded"></div>
+                            <div class="w-3 h-3 bg-yellow-200 rounded"></div>
+                            <div class="w-3 h-3 bg-green-200 rounded"></div>
+                            <div class="w-3 h-3 bg-green-500 rounded"></div>
+                            <span>Más</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Licencias Section -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold flex items-center gap-2">
+                            <i class="fas fa-file-medical text-purple-500"></i> Licencias Registradas Hoy
+                        </h3>
+                        <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium" id="licensesCount">0</span>
+                    </div>
+                    <div id="licensesList" class="space-y-3">
+                        <p class="text-gray-400 text-center py-8">No hay licencias registradas hoy</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Maestros Section -->
+            <section id="maestros" class="section-content hidden">
+                <div class="mb-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Gestión de Maestros</h2>
+                        <p class="text-gray-500">Perfil y datos del personal docente</p>
+                    </div>
+                    <button onclick="openTeacherForm()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Nuevo Maestro
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="teachersGrid">
+                    <!-- Teachers loaded dynamically -->
+                </div>
+            </section>
+
+            <!-- Estudiantes Section -->
+            <section id="estudiantes" class="section-content hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Gestión de Estudiantes</h2>
+                    <p class="text-gray-500">Búsqueda y filtrado de estudiantes</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="md:col-span-2">
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                <input type="text" id="studentSearch" placeholder="Buscar por nombre o apellido..." 
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    oninput="filterStudents()">
+                            </div>
+                        </div>
+                        <div>
+                            <select id="statusFilter" onchange="filterStudents()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">Todos los estados</option>
+                                <option value="asistio">Asistió</option>
+                                <option value="ausente">Ausente</option>
+                                <option value="atraso">Atraso</option>
+                                <option value="licencia">Licencia</option>
+                            </select>
+                        </div>
+                        <div>
+                            <select id="gradeFilter" onchange="filterStudents()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">Todos los cursos</option>
+                                <option value="1ro">1ro Primaria</option>
+                                <option value="2do">2do Primaria</option>
+                                <option value="3ro">3ro Primaria</option>
+                                <option value="4to">4to Primaria</option>
+                                <option value="5to">5to Primaria</option>
+                                <option value="6to">6to Primaria</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">#</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Estudiante</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Tutor</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Celular</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Estado Hoy</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Observaciones</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody" class="divide-y divide-gray-100">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                        <span class="text-sm text-gray-500" id="studentsCount">0 estudiantes</span>
+                        <div class="flex gap-2">
+                            <button onclick="exportStudentsCSV()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fas fa-file-csv"></i> Exportar CSV
+                            </button>
+                            <button onclick="printStudents()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lista (Toma de Lista) Section -->
+            <section id="lista" class="section-content hidden">
+                <div class="mb-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Toma de Lista Rápida</h2>
+                        <p class="text-gray-500" id="listaDate">Fecha: 12/05/2026</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="saveAttendance()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition flex items-center gap-2 font-semibold">
+                            <i class="fas fa-save"></i> Guardar Asistencia
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+                    <i class="fas fa-info-circle text-yellow-600 mt-0.5"></i>
+                    <div class="text-sm text-yellow-800">
+                        <p class="font-semibold">Instrucciones:</p>
+                        <p>Seleccione el estado de asistencia para cada estudiante. Use el menú desplegable para registrar incidencias y el campo de texto para observaciones adicionales.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase w-16">#</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Estudiante</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-center">Asistió</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-center">Ausente</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-center">Atraso</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Incidencias</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody" class="divide-y divide-gray-100">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bitácora Section -->
+            <section id="bitacora" class="section-content hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Bitácora de Registros</h2>
+                    <p class="text-gray-500">Registro de maestros y estudiantes</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Teacher Form -->
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-chalkboard-teacher text-blue-500"></i> Registro de Maestro
+                        </h3>
+                        <form id="teacherForm" class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                    <input type="text" id="teacherName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                                    <input type="text" id="teacherLastName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                                <input type="tel" id="teacherPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Especialidad</label>
+                                <input type="text" id="teacherSpecialty" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Matemáticas, Lengua...">
+                            </div>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">
+                                <i class="fas fa-save mr-2"></i> Registrar Maestro
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Student Form -->
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-user-graduate text-green-500"></i> Registro de Estudiante
+                        </h3>
+                        <form id="studentForm" class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                    <input type="text" id="studentName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                                    <input type="text" id="studentLastName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">CI</label>
+                                    <input type="text" id="studentCI" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                                    <input type="tel" id="studentPhone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tutor</label>
+                                <input type="text" id="studentTutor" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Domicilio</label>
+                                <textarea id="studentAddress" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Curso</label>
+                                <select id="studentGrade" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1ro">1ro Primaria</option>
+                                    <option value="2do">2do Primaria</option>
+                                    <option value="3ro">3ro Primaria</option>
+                                    <option value="4to">4to Primaria</option>
+                                    <option value="5to">5to Primaria</option>
+                                    <option value="6to">6to Primaria</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition">
+                                <i class="fas fa-save mr-2"></i> Registrar Estudiante
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Recent Registrations Table -->
+                <div class="mt-8 bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Registros Recientes</h3>
+                        <div class="flex gap-2">
+                            <button onclick="exportBitacoraCSV()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fas fa-file-csv"></i> Exportar CSV
+                            </button>
+                            <button onclick="printBitacora()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm transition flex items-center gap-2">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Tipo</th>
+                                    <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nombre Completo</th>
+                                    <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">CI/Celular</th>
+                                    <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Detalles</th>
+                                    <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bitacoraTableBody" class="divide-y divide-gray-100">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Teacher Modal -->
+    <div id="teacherModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Perfil del Maestro</h3>
+                <button onclick="closeTeacherModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="teacherModalContent" class="space-y-4">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 transition-transform duration-300 z-50 flex items-center gap-3">
+        <i class="fas fa-check-circle text-green-400"></i>
+        <span id="toastMessage">Operación exitosa</span>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
