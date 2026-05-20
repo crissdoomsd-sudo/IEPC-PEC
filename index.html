@@ -166,9 +166,21 @@ h1,h2,h3,h4,.font-display{font-family:'Fredoka',sans-serif}
 <div class="card-premium mb-4 p-4 no-print">
   <div class="flex flex-col md:flex-row gap-4 items-end">
     <div class="flex-1"><label class="block text-xs font-bold mb-1 text-gray-400">Curso</label><select id="calif-curso-select" class="form-input" onchange="renderCalificaciones()"><option value="">Seleccionar Curso</option></select></div>
+    <div class="flex-1"><label class="block text-xs font-bold mb-1 text-gray-400">Fecha de Evaluación</label><input type="date" id="calif-date" class="form-input" onchange="saveCalifDate()"></div>
+  </div>
+  <div class="flex gap-2 mt-4">
+    <button onclick="switchCalifTab('cotejo')" id="calif-tab-cotejo" class="eval-tab active" data-califtab="cotejo">Evaluación Cotejo</button>
+    <button onclick="switchCalifTab('rubrica')" id="calif-tab-rubrica" class="eval-tab" data-califtab="rubrica">Evaluación Rúbrica</button>
   </div>
 </div>
-<div class="card-premium p-0 overflow-hidden"><div class="overflow-x-auto"><table class="data-table"><thead><tr><th>#</th><th>Estudiante</th><th>Cotejo</th><th>Rúbrica</th><th>Observación</th><th class="no-print">Acción</th></tr></thead><tbody id="calif-body"></tbody></table></div></div>
+
+<div id="calif-table-cotejo" class="card-premium p-0 overflow-hidden">
+  <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>#</th><th>Estudiante</th><th>Puntaje Cotejo</th><th>Observación Cotejo</th><th class="no-print">Acción</th></tr></thead><tbody id="calif-body-cotejo"></tbody></table></div>
+</div>
+
+<div id="calif-table-rubrica" class="card-premium p-0 overflow-hidden hidden">
+  <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>#</th><th>Estudiante</th><th>Puntaje Rúbrica</th><th>Observación Rúbrica</th><th class="no-print">Acción</th></tr></thead><tbody id="calif-body-rubrica"></tbody></table></div>
+</div>
 </section>
 
 <!-- REPORTES -->
@@ -325,7 +337,7 @@ h1,h2,h3,h4,.font-display{font-family:'Fredoka',sans-serif}
 </div>
 
 <div id="eval-content-rubrica" class="eval-section hidden">
-<h3 class="font-display font-bold text-amber-400 mb-2">Rúbrica - Exposición Oral</h3>
+<h3 class="font-display font-bold text-amber-400 mb-2">Rúbrica</h3>
 <div class="overflow-x-auto mb-4"><table class="data-table eval-table" id="eval-rubrica-table"><thead><tr><th>Categoría</th><th>Deficiente (1pt)</th><th>Regular (2pt)</th><th>Bueno (3pt)</th><th>Excelente (4pt)</th><th>Selección</th><th class="no-print">Acción</th></tr></thead><tbody>
 <tr><td><input type="text" value="Dominio del tema"></td><td><input type="text" value="No conoce el tema"></td><td><input type="text" value="Conoce superficialmente"></td><td><input type="text" value="Buen manejo"></td><td><input type="text" value="Manejo excepcional"></td><td><select><option value="0">-</option><option value="1">1 pt</option><option value="2">2 pt</option><option value="3">3 pt</option><option value="4">4 pt</option></select></td><td class="no-print"><button onclick="this.closest('tr').remove();saveEvalData()" class="btn-danger text-xs"><i class="fas fa-trash"></i></button></td></tr>
 <tr><td><input type="text" value="Estructura"></td><td><input type="text" value="Sin orden lógico"></td><td><input type="text" value="Orden intermitente"></td><td><input type="text" value="Orden claro"></td><td><input type="text" value="Estructura impecable"></td><td><select><option value="0">-</option><option value="1">1 pt</option><option value="2">2 pt</option><option value="3">3 pt</option><option value="4">4 pt</option></select></td><td class="no-print"><button onclick="this.closest('tr').remove();saveEvalData()" class="btn-danger text-xs"><i class="fas fa-trash"></i></button></td></tr>
@@ -404,8 +416,19 @@ function renderHeatmap(){const c=document.getElementById('heatmap-grid');if(!c)r
 function renderRegistroDiario(){const dk=document.getElementById('registro-date')?.value||getTodayKey();const tb=document.getElementById('registro-body');if(!tb)return;const src=(document.getElementById('registro-search')?.value||'').toLowerCase();const dayData=state.monthlyData[dk]||{};const entries=Object.entries(dayData).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));let html='';let idx=1;entries.forEach(([id,r])=>{const s=state.students[id];if(!s)return;if(src&&!`${s.nombre} ${s.apellido}`.toLowerCase().includes(src))return;const badge=r.estado==='presente'?'badge-green':r.estado==='ausente'?'badge-red':r.estado==='atraso'?'badge-amber':'badge-purple';html+=`<tr><td class="font-bold text-gray-400">${idx++}</td><td class="font-mono text-xs text-indigo-400 font-bold">${formatTime(r.timestamp)}</td><td class="font-bold">${s.nombre} ${s.apellido}</td><td><span class="badge ${badge}">${r.estado||'-'}</span></td><td>${r.incidencias&&r.incidencias.length>0?r.incidencias.map(i=>`<span class="badge badge-amber mr-1">${i}</span>`).join(''):'-'}</td><td class="text-sm text-gray-500">${r.observaciones||'-'}</td></tr>`;});tb.innerHTML=html||'<tr><td colspan="6" class="text-center py-8 text-gray-400">Sin registros</td></tr>';}
 
 // CALIFICACIONES
-function renderCalificaciones(){const cId=document.getElementById('calif-curso-select')?.value;const tb=document.getElementById('calif-body');if(!tb)return;if(!cId){tb.innerHTML='<tr><td colspan="6" class="text-center py-8 text-gray-400">Seleccione un curso</td></tr>';return;}const entries=Object.entries(state.students).filter(([id,s])=>s.cursoId===cId).sort((a,b)=>(`${a[1].apellido}${a[1].nombre}`).localeCompare(`${b[1].apellido}${b[1].nombre}`));const grades=state.calificaciones[cId]||{};let html='';entries.forEach(([id,s],idx)=>{const g=grades[id]||{};html+=`<tr><td class="font-bold text-gray-400">${idx+1}</td><td class="font-bold">${s.nombre} ${s.apellido}</td><td><input type="number" min="0" max="100" value="${g.cotejo||''}" class="form-input text-xs py-1 w-24" onchange="saveCalif('${cId}','${id}','cotejo',this.value)"></td><td><input type="number" min="0" max="100" value="${g.rubrica||''}" class="form-input text-xs py-1 w-24" onchange="saveCalif('${cId}','${id}','rubrica',this.value)"></td><td><input type="text" value="${g.obs||''}" class="form-input text-xs py-1" onchange="saveCalif('${cId}','${id}','obs',this.value)"></td><td class="no-print"><button class="btn-edit text-xs" onclick="goToEval('${id}','${cId}')"><i class="fas fa-edit"></i> Evaluar</button></td></tr>`;});tb.innerHTML=html||'<tr><td colspan="6" class="text-center py-8 text-gray-400">Sin estudiantes en este curso</td></tr>';}
+function switchCalifTab(tab){document.querySelectorAll('[data-califtab]').forEach(b=>b.classList.toggle('active',b.dataset.califtab===tab));document.getElementById('calif-table-cotejo').classList.toggle('hidden',tab!=='cotejo');document.getElementById('calif-table-rubrica').classList.toggle('hidden',tab!=='rubrica');}
+
+function renderCalificaciones(){const cId=document.getElementById('calif-curso-select')?.value;const tbC=document.getElementById('calif-body-cotejo');const tbR=document.getElementById('calif-body-rubrica');if(!tbC||!tbR)return;if(!cId){tbC.innerHTML='<tr><td colspan="5" class="text-center py-8 text-gray-400">Seleccione un curso</td></tr>';tbR.innerHTML='<tr><td colspan="5" class="text-center py-8 text-gray-400">Seleccione un curso</td></tr>';return;}
+const entries=Object.entries(state.students).filter(([id,s])=>s.cursoId===cId).sort((a,b)=>(`${a[1].apellido}${a[1].nombre}`).localeCompare(`${b[1].apellido}${b[1].nombre}`));const grades=state.calificaciones[cId]||{};
+const dateInput=document.getElementById('calif-date');if(grades.fecha){dateInput.value=grades.fecha;}else{dateInput.value=getTodayKey();}
+
+let htmlC='',htmlR='';entries.forEach(([id,s],idx)=>{const g=grades[id]||{};
+htmlC+=`<tr><td class="font-bold text-gray-400">${idx+1}</td><td class="font-bold">${s.nombre} ${s.apellido}</td><td><input type="number" min="0" max="100" value="${g.cotejo||''}" class="form-input text-xs py-1 w-24" onchange="saveCalif('${cId}','${id}','cotejo',this.value)"></td><td><input type="text" value="${g.obsCotejo||''}" class="form-input text-xs py-1" onchange="saveCalif('${cId}','${id}','obsCotejo',this.value)"></td><td class="no-print"><button class="btn-edit text-xs" onclick="goToEval('${id}','${cId}')"><i class="fas fa-edit"></i></button></td></tr>`;
+htmlR+=`<tr><td class="font-bold text-gray-400">${idx+1}</td><td class="font-bold">${s.nombre} ${s.apellido}</td><td><input type="number" min="0" max="100" value="${g.rubrica||''}" class="form-input text-xs py-1 w-24" onchange="saveCalif('${cId}','${id}','rubrica',this.value)"></td><td><input type="text" value="${g.obsRubrica||''}" class="form-input text-xs py-1" onchange="saveCalif('${cId}','${id}','obsRubrica',this.value)"></td><td class="no-print"><button class="btn-edit text-xs" onclick="goToEval('${id}','${cId}')"><i class="fas fa-edit"></i></button></td></tr>`;});
+tbC.innerHTML=htmlC||'<tr><td colspan="5" class="text-center py-8 text-gray-400">Sin estudiantes en este curso</td></tr>';tbR.innerHTML=htmlR||'<tr><td colspan="5" class="text-center py-8 text-gray-400">Sin estudiantes en este curso</td></tr>';}
+
 function saveCalif(cId,sId,field,val){db.ref('calificaciones/'+cId+'/'+sId).update({[field]:val});}
+function saveCalifDate(){const cId=document.getElementById('calif-curso-select')?.value;if(!cId)return;const dateVal=document.getElementById('calif-date').value;db.ref('calificaciones/'+cId).update({fecha:dateVal});}
 function goToEval(sId,cId){state.preselectEvalStudent=sId;navigateTo('bitacora');switchBitabTab('evaluacion');document.getElementById('eval-curso-select').value=cId;loadEvalEstudiantes();setTimeout(()=>{document.getElementById('eval-estudiante-select').value=sId;loadEvalData();},400);}
 
 // REPORTES
